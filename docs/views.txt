@@ -1,0 +1,127 @@
+CREATE VIEW user_details AS
+SELECT 
+    u.user_id,
+    u.email,
+    u.failed_login_attempts,
+    u.activation_status,
+    u.locked_until,
+    u.referral_code,
+    s.type AS subscription_type,
+    s.price AS subscription_price,
+    s.start_date AS subscription_start,
+    s.end_date AS subscription_end
+FROM public."Users" u
+LEFT JOIN public."Subscriptions" s ON u.user_id = s.user_id;
+
+CREATE VIEW profile_details AS
+SELECT 
+    p.profile_id,
+    p.user_id,
+    p.name AS profile_name,
+    p.age,
+    p.photo_path,
+    p.child_profile,
+    p.language,
+    p.date_of_birth,
+    pr.content_type AS preference_content_type,
+    pr.minimum_age AS preference_minimum_age,
+    pr.viewing_classification AS preference_viewing_classifications
+FROM public."Profiles" p
+LEFT JOIN public."Preferences" pr ON p.profile_id = pr.profile_id;
+
+CREATE VIEW viewing_classifications AS
+SELECT 
+    vc.preferences_id,
+    vc."6years" AS under_6,
+    vc."9years" AS under_9,
+    vc."12years" AS under_12,
+    vc."16years" AS under_16,
+    vc.over_18years AS over_18,
+    vc.violence,
+    vc.sex,
+    vc.terror,
+    vc.descrimination,
+    vc.drug_abuse,
+    vc.alcohol_abuse,
+    vc.coarse_language
+FROM public."Viewing Classification" vc;
+
+CREATE VIEW genre_details AS
+SELECT 
+    g.preferences_id,
+    g.action,
+    g.adventure,
+    g.comedy,
+    g.crime,
+    g.drama,
+    g.horror,
+    g.romance,
+    g.science_fiction
+FROM public."Genre" g;
+
+CREATE VIEW watch_history_details AS
+SELECT 
+    wh.history_id,
+    wh.profile_id,
+    wh.media_id,
+    wh.resume_to AS resume_position,
+    wh.times_watched,
+    wh.time_stamp,
+    wh.viewing_status,
+    m.title AS media_title,
+    m.duration AS media_duration
+FROM public."Watch History" wh
+LEFT JOIN public."Media" m ON wh.media_id = m.media_id;
+
+CREATE VIEW watch_list_details AS
+SELECT 
+    wl.list_id,
+    wl.profile_id,
+    wl.media_id,
+    wl.viewing_status,
+    m.title AS media_title,
+    m.duration AS media_duration
+FROM public."WatchLists" wl
+LEFT JOIN public."Media" m ON wl.media_id = m.media_id;
+
+CREATE VIEW series_and_seasons AS
+SELECT 
+    s.series_id,
+    s.title AS series_title,
+    s.age_restriction,
+    s.start_date AS series_start_date,
+    s.genre AS series_genres,
+    s.viewing_classification AS series_viewing_classifications,
+    ss.season_id,
+    ss.season_number,
+    ss.release_date AS season_release_date
+FROM public."Series" s
+LEFT JOIN public."Seasons" ss ON s.series_id = ss.series_id;
+
+CREATE VIEW media_details AS
+SELECT 
+    m.media_id,
+    m.season_id,
+    m.episode_number,
+    m.title AS media_title,
+    m.duration AS media_duration,
+    m.release_date AS media_release_date,
+    m.available_qualities AS media_qualities,
+    s.title AS series_title,
+    ss.season_number
+FROM public."Media" m
+LEFT JOIN public."Seasons" ss ON m.season_id = ss.season_id
+LEFT JOIN public."Series" s ON ss.series_id = s.series_id;
+
+CREATE VIEW subscription_referral_stats AS
+SELECT 
+    u.user_id,
+    u.email,
+    u.referral_code,
+    COUNT(r.user_id) AS referred_users_count,
+    s.type AS subscription_type,
+    s.price AS subscription_price
+FROM public."Users" u
+LEFT JOIN public."Users" r ON u.user_id = r.referral_id
+LEFT JOIN public."Subscriptions" s ON u.user_id = s.user_id
+GROUP BY u.user_id, u.email, u.referral_code, s.type, s.price;
