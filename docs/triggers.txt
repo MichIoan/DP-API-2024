@@ -1,0 +1,105 @@
+-- 1. Failed Login Attempt Lockout Trigger
+CREATE OR REPLACE FUNCTION lock_user_account()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.failed_login_attempts >= 3 THEN
+        NEW.locked_until := NOW() + INTERVAL '1 hour';
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER failed_login_trigger
+BEFORE UPDATE ON "Users"
+FOR EACH ROW
+WHEN (OLD.failed_login_attempts < 3 AND NEW.failed_login_attempts >= 3)
+EXECUTE FUNCTION lock_user_account();
+
+-- 2. Trial Expiry Trigger
+CREATE OR REPLACE FUNCTION expire_trial_period()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.price IS NOT NULL THEN
+        UPDATE "Users"
+        SET trial_available = FALSE
+        WHERE user_id = NEW.user_id;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trial_expiry_trigger
+AFTER INSERT OR UPDATE ON "Subscriptions"
+FOR EACH ROW
+EXECUTE FUNCTION expire_trial_period();
+
+-- 3. Viewing History Update Trigger
+CREATE OR REPLACE FUNCTION update_viewing_history()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM "Watch History" WHERE profile_id = NEW.profile_id AND media_id = NEW.media_id) THEN
+        UPDATE "Watch History"
+        SET times_watched = times_watched + 1, time_stamp = NOW()
+        WHERE profile_id = NEW.profile_id AND media_id = NEW.media_id;
+        RETURN NULL;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER viewing_history_trigger
+BEFORE INSERT ON "Watch History"
+FOR EACH ROW
+EXECUTE FUNCTION update_viewing_history();
+
+-- 4. Profile Age Restrictions Validation Trigger
+CREATE OR REPLACE FUNCTION validate_profile_age()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.child_profile AND NEW.age >= 18 THEN
+        RAISE EXCEPTION 'Child profiles cannot have age 18 or higher';
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER profile_age_validation_trigger
+BEFORE INSERT OR UPDATE ON "Profiles"
+FOR EACH ROW
+EXECUTE FUNCTION validate_profile_age();
+
+-- 5. Referral Discount Trigger
+CREATE OR REPLACE FUNCTION apply_referral_discount()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.referral_code IS NOT NULL THEN
+        UPDATE "Subscriptions"
+        SET price = price - 2.00
+        WHERE user_id = NEW.user_id;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER referral_discount_trigger
+AFTER INSERT ON "Users"
+FOR EACH ROW
+EXECUTE FUNCTION apply_referral_discount();
+
+-- 6. Watchlist Auto-Removal Trigger
+CREATE OR REPLACE FUNCTION remove_from_watchlist()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.viewing_status = 'complete' THEN
+        DELETE FROM "WatchLists"
+        WHERE profile_id = NEW.profile_id AND media_id = NEW.media_id;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER watchlist_removal_trigger
+AFTER UPDATE ON "WatchLists"
+FOR EACH ROW
+WHEN (NEW.viewing_status = 'complete')
+EXECUTE FUNCTION remove_from_watchlist();
