@@ -63,3 +63,60 @@ const createSeason = async (req, res) => {
         });
     }
 };
+
+const createEpisode = async (req, res) => {
+    const { seasonId } = req.params;
+    const { title, episode_number, duration } = req.body;
+
+    if (!title || !episode_number || !duration) {
+        response(req, res, 400, {
+            message: "Please provide title, episode number, and duration."
+        });
+        return;
+    }
+
+    try {
+        const newEpisode = await Episode.create({
+            title,
+            episode_number,
+            duration,
+            seasonId
+        });
+
+        response(req, res, 200, {
+            message: "Episode added successfully.",
+            episode: newEpisode
+        });
+    } catch (err) {
+        console.log(err);
+        response(res, 500, {
+            error: "Internal server error"
+        });
+    }
+};
+
+const deleteSeries = async (req, res) => {
+    const { seriesId } = req.params;
+
+    try {
+        const result = await Series.destroy({
+            where: { id: seriesId }
+        });
+
+        if (result === 0) {
+            response(req, res, 404, {
+                message: "Series not found."
+            });
+            return;
+        }
+
+        response(req, res, 200, {
+            message: "Series deleted successfully."
+        });
+    } catch (err) {
+        console.log(err);
+        response(res, 500, {
+            error: "Internal server error"
+        });
+    }
+};
