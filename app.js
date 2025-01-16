@@ -14,13 +14,31 @@ app.use(cors({ origin: true, credentials: true }));
 
 app.options("*", cors());
 
+//routes for register, login, activation and passw reset
 const authRoutes = require("./src/routes/authRoutes");
 app.use("/auth", authRoutes);
 
+//routes for account, profiles, subscription
 const userRoutes = require("./src/routes/userRoutes");
 app.use("/user", userRoutes);
 
-app.use((error, req, res, next) => {
+//routes for movies
+const movieRoutes = require("./src/routes/movieRoutes");
+app.use("/movie", movieRoutes);
+
+//routes for series, season and episodes
+const seriesRoutes = require("./src/routes/seriesRoutes");
+app.use("/series", seriesRoutes);
+
+//routes for watchList
+const watchListRoutes = require("./src/controllers/watchListRoutes");
+app.use("/watchlist", watchListRoutes);
+
+//routes for watchHistory
+const watchHistoryRoutes = require("./src/controllers/watchHistoryRoutes");
+app.use("./watchHistory", watchHistoryRoutes);
+
+app.use((error, req, res) => {
 	const status = error.statusCode || 500;
 	const message = error.message;
 	const data = error.data;
