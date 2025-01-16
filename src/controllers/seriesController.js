@@ -120,3 +120,44 @@ const deleteSeries = async (req, res) => {
         });
     }
 };
+
+const getSeries = async (req, res) => {
+    try {
+        const series = await Series.findAll();
+
+        if (series.length === 0) {
+            response(req, res, 200, {
+                message: "You have no series in your database."
+            });
+            return;
+        }
+
+        response(req, res, 200, { series });
+    } catch (err) {
+        response(res, 500, {
+            error: "Internal server error"
+        });
+    }
+};
+
+const getSeriesById = async (req, res) => {
+    const { seriesId } = req.params;
+
+    try {
+        const series = await Series.findByPk(seriesId);
+
+        if (!series) {
+            response(req, res, 404, {
+                message: "Series not found."
+            });
+            return;
+        }
+
+        response(req, res, 200, { series });
+    } catch (err) {
+        console.log(err);
+        response(res, 500, {
+            error: "Internal server error"
+        });
+    }
+};
