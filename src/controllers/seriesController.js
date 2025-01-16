@@ -193,3 +193,14 @@ const endSeriesEpisode = async (req, res) => {
         });
     }
 };
+
+module.exports = {
+    createSeries,
+    createSeason,
+    createEpisode,
+    deleteSeries,
+    getSeries,
+    getSeriesById,
+    startSeriesEpisode,
+    endSeriesEpisode
+};
