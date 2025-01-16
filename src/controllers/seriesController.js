@@ -161,3 +161,35 @@ const getSeriesById = async (req, res) => {
         });
     }
 };
+
+const startSeriesEpisode = async (req, res) => {
+    const { profileId, seriesId, season, episode } = req.params;
+
+    try {
+        // Logic to mark episode as started (add to user's profile or watch history)
+        response(req, res, 200, {
+            message: `Started watching series ${seriesId}, season ${season}, episode ${episode}.`
+        });
+    } catch (err) {
+        console.log(err);
+        response(res, 500, {
+            error: "Internal server error"
+        });
+    }
+};
+
+const endSeriesEpisode = async (req, res) => {
+    const { profileId, seriesId, season, episode } = req.params;
+
+    try {
+        // Logic to mark episode as finished (update user's profile or watch history)
+        response(req, res, 200, {
+            message: `Finished watching series ${seriesId}, season ${season}, episode ${episode}.`
+        });
+    } catch (err) {
+        console.log(err);
+        response(res, 500, {
+            error: "Internal server error"
+        });
+    }
+};
