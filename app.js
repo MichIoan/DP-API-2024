@@ -17,6 +17,9 @@ app.options("*", cors());
 const authRoutes = require("./src/routes/authRoutes");
 app.use("/auth", authRoutes);
 
+const userRoutes = require("./src/routes/userRoutes");
+app.use("/user", userRoutes);
+
 app.use((error, req, res, next) => {
 	const status = error.statusCode || 500;
 	const message = error.message;
