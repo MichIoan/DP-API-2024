@@ -38,6 +38,9 @@ app.use("/watchlist", watchListRoutes);
 const watchHistoryRoutes = require("./src/controllers/watchHistoryRoutes");
 app.use("./watchHistory", watchHistoryRoutes);
 
+const dashboardRoutes = require("./src/controllers/dashboardRoutes");
+app.use("/dashboard", dashboardRoutes);
+
 app.use((error, req, res) => {
 	const status = error.statusCode || 500;
 	const message = error.message;
