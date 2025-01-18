@@ -31,11 +31,11 @@ const seriesRoutes = require("./src/routes/seriesRoutes");
 app.use("/series", seriesRoutes);
 
 //routes for watchList
-const watchListRoutes = require("./src/controllers/watchListRoutes");
+const watchListRoutes = require("./src/routes/watchListRoutes");
 app.use("/watchlist", watchListRoutes);
 
 //routes for watchHistory
-const watchHistoryRoutes = require("./src/controllers/watchHistoryRoutes");
+const watchHistoryRoutes = require("./src/routes/watchHistoryRoutes");
 app.use("./watchHistory", watchHistoryRoutes);
 
 app.use((error, req, res) => {
