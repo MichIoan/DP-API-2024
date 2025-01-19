@@ -10,12 +10,4 @@ router.get("/movie/:movieId/getMovie", movieController.getMovieById);
 
 router.get("/getMovies", movieController.getMovies);
 
-router.get("/series/:seriesId/getSeries", movieController.getSeriesById);
-
-router.post("/:profileId/:movieId/start", movieController.startMovie);
-
-router.post("/:profileId/:movieId/pause", movieController.pauseMovie);
-
-router.post("/:profileId/:movieId/end", movieController.endMovie);
-
 module.exports = router;
