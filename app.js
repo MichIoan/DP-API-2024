@@ -3,6 +3,8 @@ const morgan = require("morgan");
 const cors = require("cors");
 const helmet = require("helmet");
 const bodyParser = require("body-parser");
+const xmlparser = require("express-xml-bodyparser");
+const responseMiddleware = require("./src/middleware/responseMiddleware");
 
 const port = 8081;
 
@@ -12,7 +14,11 @@ app.use(bodyParser.json());
 app.use(morgan("dev"));
 app.use(cors({ origin: true, credentials: true }));
 
+app.use(xmlparser());
+
 app.options("*", cors());
+
+app.use(responseMiddleware);
 
 //routes for register, login, activation and passw reset
 const authRoutes = require("./src/routes/authRoutes");

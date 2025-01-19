@@ -1,6 +1,5 @@
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
-const sendResponse = require("../utils/sendResponse");
 
 async function isLoggedIn(req, res, next) {
 	const decoded = getToken(req, res);
@@ -16,14 +15,14 @@ async function isLoggedIn(req, res, next) {
 		});
 
 		if (user.status === "locked") {
-			sendResponse(req, res, 401, {
+			res.response(req, res, 401, {
 				message: "Locked account, try again later.",
 			});
 			return;
 		}
 
 		if (user.status === "not_activated") {
-			sendResponse(req, res, 401, {
+			res.response(req, res, 401, {
 				message: "Account not activated",
 			});
 			return;
@@ -32,7 +31,7 @@ async function isLoggedIn(req, res, next) {
 		next();
 	} catch (err) {
 		console.log(err);
-		response(req, res, 500, { error: "Internal server error" });
+		res.response(req, res, 500, { error: "Internal server error" });
 		return;
 	}
 }
@@ -42,7 +41,7 @@ async function getToken(req, res) {
 	let token;
 
 	if (!header) {
-		sendResponse(req, res, 400, { error: "No token provided" });
+		res.response(req, res, 400, { error: "No token provided" });
 	}
 
 	const bearer = header.split(" ");
@@ -55,10 +54,10 @@ async function getToken(req, res) {
 		decoded = jwt.verify(token, process.env.JWT_KEY);
 	} catch (error) {
 		if (error instanceof jwt.TokenExpiredError) {
-			sendResponse(req, res, 403, { error: "Token expired" });
+			res.response(req, res, 403, { error: "Token expired" });
 			return;
 		} else {
-			sendResponse(req, res, 400, { error: "Invalid token" });
+			res.response(req, res, 400, { error: "Invalid token" });
 			return;
 		}
 	}
@@ -66,4 +65,4 @@ async function getToken(req, res) {
 	return decoded;
 }
 
-module.exports = { isLoggedIn };
+module.exports = isLoggedIn;
