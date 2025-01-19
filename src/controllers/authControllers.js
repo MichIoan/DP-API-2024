@@ -13,7 +13,7 @@ const register = async (req, res) => {
 			},
 		});
 
-		if (userExists) {
+		if (existingUser) {
 			return res
 				.status(400)
 				.json({ error: "User with this email already exists" });
@@ -21,16 +21,11 @@ const register = async (req, res) => {
 
 		//if not, get passwd and generate referral
 		const password = await bcrypt.hash(req.body.password, 10);
-		const referral_code = await generateUniqueReferralCode(email);
-
-		const token = jwt.sign({ email: req.body.email }, process.env.JWT_KEY, {
-			expiresIn: "1d",
-		});
 
 		await User.create({
 			email: email,
 			password: password,
-			referral_code: referral_code,
+			refferal_code: req.body.refferal_id ?? null,
 		});
 
 		res.status(201).json({
@@ -38,6 +33,7 @@ const register = async (req, res) => {
 		});
 	} catch (error) {
 		res.status(500).json({ error: error });
+		console.log(error);
 	}
 };
 
@@ -113,7 +109,7 @@ const login = async (req, res) => {
 
 		// If the password is valid, generate a JWT token
 		const token = jwt.sign(
-			{ userId: existingUser.id, email: existingUser.email },
+			{ userId: existingUser.id, email: existingUser.email, type: "access" },
 			process.env.JWT_KEY, // Secret key
 			{ expiresIn: "6h" }
 		);
@@ -123,7 +119,10 @@ const login = async (req, res) => {
 			locked_until: null,
 		});
 
-		res.status(200).json({ message: "Login successful", token: token });
+		res.status(200).json({
+			message: "Login successful",
+			token: token,
+		});
 	} catch (error) {
 		console.error("Error during login:", error);
 		res.status(500).json({ error: "Internal server error" });

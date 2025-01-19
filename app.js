@@ -19,8 +19,8 @@ const authRoutes = require("./src/routes/authRoutes");
 app.use("/auth", authRoutes);
 
 //routes for account, profiles, subscription
-const userRoutes = require("./src/routes/userRoutes");
-app.use("/user", userRoutes);
+//const userRoutes = require("./src/routes/userRoutes");
+//app.use("/user", userRoutes);
 
 //routes for movies
 const movieRoutes = require("./src/routes/movieRoutes");
