@@ -1,23 +1,11 @@
-// const express = require("express");
-// const subscriptionController = require("../controllers/subscriptionController");
-// const router = express.Router();
-// const isLoggedIn = require("../middleware/isLoggedIn");
+const express = require("express");
+const router = express.Router();
+const subscriptionController = require("../controllers/subscriptionController");
 
-// router.use(isLoggedIn);
+router.get("/subscriptions", subscriptionController.getAllSubscriptions);
 
-// router.put(
-// 	"/:userId/subscription/edit-subscription-plan",
-// 	subscriptionController.changeSubscription
-// );
+router.patch("/subscriptions/:subscriptionId", subscriptionController.updateSubscription);
 
-// router.get(
-// 	"/:userId/subscription/get-subcription-information",
-// 	subscriptionController.getSubscriptionInfo
-// );
+router.delete("/subscriptions/:subscriptionId", subscriptionController.deleteSubscription);
 
-// router.patch(
-// 	"/:userId/subscription/renew-subscription",
-// 	subscriptionController.renewSubscription
-// );
-
-// module.exports = router;
+module.exports = router;
