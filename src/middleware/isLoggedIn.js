@@ -7,6 +7,9 @@ async function isLoggedIn(req, res, next) {
 
 	const email = decoded.email;
 
+	console.log(email);
+	console.log(decoded);
+
 	try {
 		const user = await User.findOne({
 			where: {

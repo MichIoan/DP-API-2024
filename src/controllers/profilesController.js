@@ -5,7 +5,7 @@ const profileController = {
 		const { userId } = req.params;
 
 		if (!userId) {
-			return res.status(400).json({
+			return res.response(req, res, 400, {
 				message: "Please provide a valid userId to retrieve profiles.",
 			});
 		}
@@ -24,10 +24,10 @@ const profileController = {
 				});
 			}
 
-			return res.status(200).json(result.rows);
+			return res.response(req, res, 400, result.rows);
 		} catch (error) {
 			console.error(error);
-			return res.status(500).json({
+			return res.response(req, res, 500, {
 				message: "Internal server error",
 				error: error.message,
 			});
@@ -38,7 +38,7 @@ const profileController = {
 		const { userId, name, age, photoPath } = req.body;
 
 		if (!userId || !name) {
-			return res.status(400).json({
+			return res.response(req, res, 400, {
 				message: "Please provide both userId and name to create a profile.",
 			});
 		}
@@ -57,19 +57,19 @@ const profileController = {
 
 			await db.query(query, values);
 
-			return res.status(201).json({
+			return res.response(req, res, 201, {
 				message: "Profile created successfully.",
 			});
 		} catch (error) {
 			console.error(error);
 
 			if (error.message.includes("unique constraint violation")) {
-				return res.status(400).json({
+				return res.response(req, res, 400, {
 					message: "A profile with this userId already exists.",
 				});
 			}
 
-			return res.status(500).json({
+			return res.response(req, res, 500, {
 				message: "Internal server error",
 				error: error.message,
 			});
@@ -80,7 +80,7 @@ const profileController = {
 		const { profileId } = req.params;
 
 		if (!profileId) {
-			return res.status(400).json({
+			return res.response(req, res, 400, {
 				message: "Please provide a valid profileId.",
 			});
 		}
@@ -95,18 +95,18 @@ const profileController = {
 			const result = await db.query(query, values);
 
 			if (result.rows.length === 0) {
-				return res.status(404).json({
+				return res.response(req, res, 404, {
 					message: "Profile not found.",
 				});
 			}
 
-			return res.status(200).json({
+			return res.response(req, res, 200, {
 				message: "Profile retrieved successfully.",
 				profile: result.rows[0],
 			});
 		} catch (error) {
 			console.error(error);
-			return res.status(500).json({
+			return res.response(req, res, 500, {
 				message: "Internal server error",
 				error: error.message,
 			});
@@ -125,7 +125,7 @@ const profileController = {
 		} = req.body;
 
 		if (!profileId) {
-			return res.status(400).json({
+			return res.response(req, res, 400, {
 				message: "Please provide a valid profileId.",
 			});
 		}
@@ -147,7 +147,7 @@ const profileController = {
 		}
 
 		if (updateFields.length === 0) {
-			return res.status(400).json({
+			return res.response(req, res, 400, {
 				message: "Please provide at least one field to update.",
 			});
 		}
@@ -205,13 +205,13 @@ const profileController = {
 				}
 			}
 
-			return res.status(200).json({
+			return res.response(req, res, 200, {
 				message: "Profile updated successfully.",
 				profile: profileResult.rows[0],
 			});
 		} catch (error) {
 			console.error(error);
-			return res.status(500).json({
+			return res.response(req, res, 500, {
 				message: "Internal server error",
 				error: error.message,
 			});
@@ -222,7 +222,7 @@ const profileController = {
 		const { profileId } = req.params;
 
 		if (!profileId) {
-			return res.status(400).json({
+			return res.response(req, res, 400, {
 				message: "Please provide a valid profileId to delete.",
 			});
 		}
@@ -236,18 +236,18 @@ const profileController = {
 			const result = await db.query(deleteProfileQuery, [profileId]);
 
 			if (result.rows.length === 0) {
-				return res.status(404).json({
+				return res.response(req, res, 404, {
 					message: "Profile not found.",
 				});
 			}
 
-			return res.status(200).json({
+			return res.response(req, res, 200, {
 				message: "Profile deleted successfully.",
 				profile: result.rows[0],
 			});
 		} catch (error) {
 			console.error(error);
-			return res.status(500).json({
+			return res.response(req, res, 500, {
 				message: "Internal server error",
 				error: error.message,
 			});

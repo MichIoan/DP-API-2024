@@ -1,10 +1,9 @@
 const express = require("express");
 const authController = require("../controllers/authControllers");
 const isLoggedIn = require("../middleware/isLoggedIn");
+const { body } = require("express-validator");
 
 const router = express.Router();
-
-router.use(isLoggedIn);
 
 router.post("/register", authController.register);
 

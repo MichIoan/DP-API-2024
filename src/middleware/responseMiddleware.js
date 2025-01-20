@@ -8,8 +8,8 @@ const jsonToXml = (json) => {
 
 // Middleware to handle response format
 const responseMiddleware = (req, res, next) => {
-	res.respond = (data) => {
-		const accept = req.headers["accept"] || "";
+	res.response = (data) => {
+		const accept = req.headers["Accept"] || "";
 		if (accept.includes("application/xml") || req.query.format === "xml") {
 			res.set("Content-Type", "application/xml");
 			res.send(jsonToXml(data));
