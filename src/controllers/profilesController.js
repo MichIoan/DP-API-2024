@@ -1,14 +1,14 @@
 const { Profile } = require('../models'); 
 
 const profileController = {
-    getAllProfiles: async (req, res) => {
-        const { userId } = req.params;
+	getAllProfiles: async (req, res) => {
+		const { userId } = req.params;
 
-        if (!userId) {
-            return res.status(400).json({
-                message: "Please provide a valid userId to retrieve profiles.",
-            });
-        }
+		if (!userId) {
+			return res.response(req, res, 400, {
+				message: "Please provide a valid userId to retrieve profiles.",
+			});
+		}
 
         try {
             const profiles = await Profile.query(
@@ -168,6 +168,7 @@ const profileController = {
             });
         }
     },
+
 };
 
 module.exports = profileController;
