@@ -13,13 +13,13 @@ const subscriptionController = {
             });
     
             if (!subscriptions.length) {
-                return res.status(404).json({ message: "No subscriptions found." });
+                return res.response(req, res, 404, {message: "No subscriptions found."});
             }
     
-            return res.status(200).json(subscriptions);
+            return res.response(req, res, 200, subscriptions);
         } catch (error) {
             console.error(error);
-            return res.status(500).json({ message: "Internal server error", error: error.message });
+            return res.response(req, res, 500, {error: error.message});
         }
     },
 
@@ -28,7 +28,7 @@ const subscriptionController = {
         const { new_plan } = req.body;
     
         if (!new_plan) {
-            return res.status(400).json({
+            return res.response(req, res, 400, {
                 message: "Please provide a new plan to update the subscription.",
             });
         }
@@ -37,7 +37,7 @@ const subscriptionController = {
             const subscription = await Subscription.findByPk(subscriptionId);
     
             if (!subscription) {
-                return res.status(404).json({ message: "Subscription not found." });
+                return res.response(req, res, 404, { message: "Subscription not found." });
             }
     
             await sequelize.query(
@@ -51,13 +51,13 @@ const subscriptionController = {
                 }
             );
     
-            return res.status(200).json({
+            return res.response(req, res, 200, {
                 message: "Subscription updated successfully.",
                 updated_subscription: subscription,
             });
         } catch (error) {
             console.error(error);
-            return res.status(500).json({ message: "Internal server error", error: error.message });
+            return res.response(req, res, 500, {error: error.message});
         }
     },    
     
@@ -68,15 +68,15 @@ const subscriptionController = {
             const subscription = await Subscription.findByPk(subscriptionId);
 
             if (!subscription) {
-                return res.status(404).json({ message: "Subscription not found." });
+                return res.response(req, res, 404, {message: "Subscription not found."});
             }
 
             await subscription.destroy();
 
-            return res.status(200).json({ message: "Subscription deleted successfully." });
+            return res.response(req, res, 200, { message: "Subscription deleted successfully." });
         } catch (error) {
             console.error(error);
-            return res.status(500).json({ message: "Internal server error", error: error.message });
+            return res.response(req, res, 500, {error: error.message});
         }
     },
 };
