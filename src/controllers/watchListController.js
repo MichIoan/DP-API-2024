@@ -1,3 +1,5 @@
+const WatchList = require("../models/WatchList");
+
 const watchListController = {
     getWatchList: async (req, res) => {
         const { profileId } = req.params;
@@ -5,25 +7,24 @@ const watchListController = {
         try {
             const query = `
                 SELECT * FROM "watch_list_details"
-                WHERE profile_id = $1;
+                WHERE profile_id = :profileId;
             `;
             
-            const values = [profileId];
-            const result = await db.query(query, values);
+            const result = await WatchList.sequelize.query(query, {
+                replacements: { profileId },
+                type: WatchList.sequelize.QueryTypes.SELECT,
+            });
 
-            if (result.rows.length === 0) {
-                return res.status(404).json({ message: "No movies found in the watchlist." });
+            if (result.length === 0) {
+                return res.response(req, res, 404, { message: "No movies found in the watchlist." });
             }
 
-            return res.status(200).json({
-                watchlist: result.rows,
+            return res.response(req, res, 200, {
+                watchlist: result,
             });
         } catch (error) {
             console.error(error);
-            return res.status(500).json({
-                message: "Internal server error",
-                error: error.message,
-            });
+            return res.response(req, res, 500, { error: error.message });
         }
     },
 
@@ -32,25 +33,25 @@ const watchListController = {
         const { movieId } = req.body;
 
         if (!movieId) {
-            return res.status(400).json({
+            return res.response(req, res, 400, {
                 message: "Please provide a movieId.",
             });
         }
 
         try {
-            const removeFromWatchListQuery = `CALL "RemoveFromWatchList"($1, $2);`;
-            const removeValues = [profileId, movieId];
-            await db.query(removeFromWatchListQuery, removeValues);
+            const query = `CALL "RemoveFromWatchList"(:profileId, :movieId);`;
+            const values = { profileId, movieId };
+            await WatchList.sequelize.query(query, {
+                replacements: values,
+                type: WatchList.sequelize.QueryTypes.RAW,
+            });
 
-            return res.status(200).json({
+            return res.response(req, res, 200, {
                 message: "Movie removed from watchlist and marked as watched.",
             });
         } catch (error) {
             console.error(error);
-            return res.status(500).json({
-                message: "Internal server error",
-                error: error.message,
-            });
+            return res.response(req, res, 500, { error: error.message });
         }
     },
 };

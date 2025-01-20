@@ -1,9 +1,11 @@
+const WatchHistory = require("../models/WatchHistory");
+
 const watchHistoryController = {
     getHistory: async (req, res) => {
         const { profileId } = req.params;
 
         if (!profileId) {
-            return res.status(400).json({
+            return res.response(req, res, 400, {
                 message: "Please provide a profileId to retrieve the watch history.",
             });
         }
@@ -11,24 +13,24 @@ const watchHistoryController = {
         try {
             const query = `
                 SELECT * FROM "watch_history_details"
-                WHERE profile_id = $1;
+                WHERE profile_id = :profileId;
             `;
             
-            const result = await db.query(query, [profileId]);
+            const result = await WatchHistory.sequelize.query(query, {
+                replacements: { profileId },
+                type: WatchHistory.sequelize.QueryTypes.SELECT,
+            });
 
-            if (result.rows.length === 0) {
-                return res.status(404).json({
+            if (result.length === 0) {
+                return res.response(req, res, 404, {
                     message: "No watch history found for the given profileId.",
                 });
             }
 
-            return res.status(200).json(result.rows);
+            return res.response(req, res, 200, result);
         } catch (error) {
             console.error(error);
-            return res.status(500).json({
-                message: "Internal server error",
-                error: error.message,
-            });
+            return res.response(req, res, 500, { error: error.message });
         }
     },
 
@@ -37,26 +39,26 @@ const watchHistoryController = {
         const { movieId } = req.body;
 
         if (!movieId) {
-            return res.status(400).json({
+            return res.response(req, res, 400, {
                 message: "Please provide a movieId to mark the movie as watched.",
             });
         }
 
         try {
-            const query = `CALL "MarkAsWatched"($1, $2);`;
+            const query = `CALL "MarkAsWatched"(:profileId, :movieId);`;
             
-            const values = [profileId, movieId];
-            await db.query(query, values);
+            const values = { profileId, movieId };
+            await WatchHistory.sequelize.query(query, {
+                replacements: values,
+                type: WatchHistory.sequelize.QueryTypes.RAW,
+            });
 
-            return res.status(200).json({
+            return res.response(req, res, 200, {
                 message: "Movie marked as watched successfully.",
             });
         } catch (error) {
             console.error(error);
-            return res.status(500).json({
-                message: "Internal server error",
-                error: error.message,
-            });
+            return res.response(req, res, 500, { error: error.message });
         }
     },
 };
