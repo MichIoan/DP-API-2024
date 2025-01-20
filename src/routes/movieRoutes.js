@@ -1,6 +1,9 @@
 const express = require("express");
 const router = express.Router();
 const movieController = require("../controllers/movieController");
+const isLoggedIn = require("../middleware/isLoggedIn");
+
+router.use(isLoggedIn);
 
 router.post("/movie/create", movieController.createMovie);
 

@@ -1,6 +1,9 @@
 const express = require("express");
 const router = express.Router();
 const seriesController = require("../controllers/seriesController");
+const isLoggedIn = require("../middleware/isLoggedIn");
+
+router.use(isLoggedIn);
 
 router.post("/series/create", seriesController.createSeries);
 

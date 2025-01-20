@@ -13,31 +13,27 @@ const register = async (req, res) => {
 			},
 		});
 
-		if (userExists) {
-			return res
-				.status(400)
-				.json({ error: "User with this email already exists" });
+		if (existingUser) {
+			return res.response(req, res, 400, {
+				error: "User with this email already exists",
+			});
 		}
 
 		//if not, get passwd and generate referral
 		const password = await bcrypt.hash(req.body.password, 10);
-		const referral_code = await generateUniqueReferralCode(email);
-
-		const token = jwt.sign({ email: req.body.email }, process.env.JWT_KEY, {
-			expiresIn: "1d",
-		});
 
 		await User.create({
 			email: email,
 			password: password,
-			referral_code: referral_code,
+			refferal_code: req.body.refferal_id ?? null,
 		});
 
-		res.status(201).json({
+		res.response(req, res, 201, {
 			message: "User was created succesfully.",
 		});
 	} catch (error) {
-		res.status(500).json({ error: error });
+		res.response(req, res, 400, { error: error });
+		console.log(error);
 	}
 };
 
@@ -45,6 +41,10 @@ const login = async (req, res) => {
 	try {
 		const email = req.body.email;
 		const password = req.body.password;
+
+		if (!isValidEmail(email)) {
+			return res.response(req, res, 404, { error: "Email invalid" });
+		}
 
 		//get existing user if there is one
 		const existingUser = await User.findOne({
@@ -54,13 +54,15 @@ const login = async (req, res) => {
 		});
 
 		if (!existingUser) {
-			return res.status(404).json({ error: "No user with these credentials" });
+			return res.response(req, res, 404, {
+				error: "No user with these credentials",
+			});
 		}
 
 		if (existingUser.status == "notActive") {
-			return res
-				.status(403)
-				.json({ error: "Your account wasn't activated yet!" });
+			return res.response(req, res, 403, {
+				error: "Your account wasn't activated yet!",
+			});
 		}
 
 		if (existingUser.status == "suspended") {
@@ -72,9 +74,9 @@ const login = async (req, res) => {
 					failed_login_attempts: 0,
 				});
 			} else {
-				return res
-					.status(403)
-					.json({ error: `You need wait until ${lockedUntil}` });
+				return res.response(req, res, 403, {
+					error: `You need wait until ${lockedUntil}`,
+				});
 			}
 		}
 
@@ -96,9 +98,9 @@ const login = async (req, res) => {
 					failed_login_attempts: counter,
 				});
 
-				return res
-					.status(403)
-					.json({ error: `You need wait until ${lockedUntil}` });
+				return res.response(req, res, 403, {
+					error: `You need wait until ${lockedUntil}`,
+				});
 			}
 
 			existingUser.update({
@@ -106,14 +108,14 @@ const login = async (req, res) => {
 			});
 
 			const leftAttempts = 3 - counter;
-			return res.status(401).json({
+			return res.response(req, res, 401, {
 				error: `Invalid password. You have ${leftAttempts} attempts left.`,
 			});
 		}
 
 		// If the password is valid, generate a JWT token
 		const token = jwt.sign(
-			{ userId: existingUser.id, email: existingUser.email },
+			{ userId: existingUser.id, email: existingUser.email, type: "access" },
 			process.env.JWT_KEY, // Secret key
 			{ expiresIn: "6h" }
 		);
@@ -123,11 +125,19 @@ const login = async (req, res) => {
 			locked_until: null,
 		});
 
-		res.status(200).json({ message: "Login successful", token: token });
+		res.response(req, res, 200, {
+			message: "Login successful",
+			token: token,
+		});
 	} catch (error) {
 		console.error("Error during login:", error);
-		res.status(500).json({ error: "Internal server error" });
+		res.response(req, res, 500, { error: "Internal server error" });
 	}
 };
+
+function isValidEmail(email) {
+	const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+	return emailRegex.test(email);
+}
 
 module.exports = { register, login };

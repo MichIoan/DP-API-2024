@@ -2,24 +2,10 @@
 -- PostgreSQL database dump
 --
 
--- Dumped from database version 17.1
--- Dumped by pg_dump version 17.0
+-- Dumped from database version 17.2
+-- Dumped by pg_dump version 17.2
 
--- Started on 2025-01-16 16:44:36
-
-SET statement_timeout = 0;
-SET lock_timeout = 0;
-SET idle_in_transaction_session_timeout = 0;
-SET transaction_timeout = 0;
-SET client_encoding = 'UTF8';
-SET standard_conforming_strings = on;
-SELECT pg_catalog.set_config('search_path', '', false);
-SET check_function_bodies = false;
-SET xmloption = content;
-SET client_min_messages = warning;
-SET row_security = off;
-
-ALTER DATABASE netflix OWNER TO postgres;
+-- Started on 2025-01-20 01:02:57
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -34,7 +20,7 @@ SET client_min_messages = warning;
 SET row_security = off;
 
 --
--- TOC entry 266 (class 1255 OID 16801)
+-- TOC entry 264 (class 1255 OID 17558)
 -- Name: AddToWatchList(integer, integer); Type: PROCEDURE; Schema: public; Owner: postgres
 --
 
@@ -59,7 +45,7 @@ $$;
 ALTER PROCEDURE public."AddToWatchList"(IN p_profile_id integer, IN p_movie_id integer) OWNER TO postgres;
 
 --
--- TOC entry 265 (class 1255 OID 16800)
+-- TOC entry 265 (class 1255 OID 17559)
 -- Name: CreateProfile(integer, character varying, integer, character varying, boolean); Type: PROCEDURE; Schema: public; Owner: postgres
 --
 
@@ -103,7 +89,7 @@ $$;
 ALTER PROCEDURE public."CreateProfile"(IN p_user_id integer, IN p_name character varying, IN p_age integer, IN p_photo_path character varying, IN p_child_profile boolean, OUT v_profile_id integer) OWNER TO postgres;
 
 --
--- TOC entry 268 (class 1255 OID 16803)
+-- TOC entry 268 (class 1255 OID 17560)
 -- Name: MarkAsWatched(integer, integer); Type: PROCEDURE; Schema: public; Owner: postgres
 --
 
@@ -133,7 +119,7 @@ $$;
 ALTER PROCEDURE public."MarkAsWatched"(IN p_profile_id integer, IN p_movie_id integer) OWNER TO postgres;
 
 --
--- TOC entry 263 (class 1255 OID 16798)
+-- TOC entry 283 (class 1255 OID 17561)
 -- Name: RegisterUser(character varying, character varying, character varying); Type: PROCEDURE; Schema: public; Owner: postgres
 --
 
@@ -181,7 +167,7 @@ $$;
 ALTER PROCEDURE public."RegisterUser"(IN p_email character varying, IN p_password character varying, INOUT p_referral_code character varying, OUT v_user_id integer) OWNER TO postgres;
 
 --
--- TOC entry 267 (class 1255 OID 16802)
+-- TOC entry 284 (class 1255 OID 17562)
 -- Name: RemoveFromWatchList(integer, integer); Type: PROCEDURE; Schema: public; Owner: postgres
 --
 
@@ -200,7 +186,7 @@ $$;
 ALTER PROCEDURE public."RemoveFromWatchList"(IN p_profile_id integer, IN p_movie_id integer) OWNER TO postgres;
 
 --
--- TOC entry 264 (class 1255 OID 16799)
+-- TOC entry 285 (class 1255 OID 17563)
 -- Name: ResetPassword(character varying, character varying); Type: PROCEDURE; Schema: public; Owner: postgres
 --
 
@@ -233,7 +219,7 @@ $$;
 ALTER PROCEDURE public."ResetPassword"(IN p_email character varying, IN p_new_password character varying) OWNER TO postgres;
 
 --
--- TOC entry 277 (class 1255 OID 16854)
+-- TOC entry 281 (class 1255 OID 17564)
 -- Name: apply_referral_discount(); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
@@ -241,7 +227,17 @@ CREATE FUNCTION public.apply_referral_discount() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
 BEGIN
-    PERFORM public."ApplyDiscount"(NEW.referral_id, NEW.user_id);
+    IF NEW.user_id IS NOT NULL THEN
+        DECLARE
+            referrer_user_id INTEGER;
+        BEGIN
+            SELECT referral_id INTO referrer_user_id FROM "Users" WHERE user_id = NEW.user_id;
+
+            IF referrer_user_id IS NOT NULL THEN
+                PERFORM applydiscount(referrer_user_id, NEW.user_id);
+            END IF;
+        END;
+    END IF;
     RETURN NEW;
 END;
 $$;
@@ -250,7 +246,7 @@ $$;
 ALTER FUNCTION public.apply_referral_discount() OWNER TO postgres;
 
 --
--- TOC entry 271 (class 1255 OID 16806)
+-- TOC entry 288 (class 1255 OID 17565)
 -- Name: applydiscount(integer, integer); Type: PROCEDURE; Schema: public; Owner: postgres
 --
 
@@ -258,15 +254,13 @@ CREATE PROCEDURE public.applydiscount(IN inviter_id integer, IN invitee_id integ
     LANGUAGE plpgsql
     AS $$
 BEGIN
-    -- Apply discount by reducing subscription price for the inviter
-    UPDATE Subscriptions
-    SET price = price - 2.00
-    WHERE user_id = inviter_id AND price > 2.00;
+    UPDATE "Users"
+    SET has_discount = true
+    WHERE user_id = inviter_id;
 
-    -- Apply discount by reducing subscription price for the invitee
-    UPDATE Subscriptions
-    SET price = price - 2.00
-    WHERE user_id = invitee_id AND price > 2.00;
+    UPDATE "Users"
+    SET has_discount = true
+    WHERE user_id = invitee_id;
 END;
 $$;
 
@@ -274,7 +268,7 @@ $$;
 ALTER PROCEDURE public.applydiscount(IN inviter_id integer, IN invitee_id integer) OWNER TO postgres;
 
 --
--- TOC entry 269 (class 1255 OID 16804)
+-- TOC entry 286 (class 1255 OID 17566)
 -- Name: blockaccount(integer); Type: PROCEDURE; Schema: public; Owner: postgres
 --
 
@@ -292,7 +286,7 @@ $$;
 ALTER PROCEDURE public.blockaccount(IN user_id integer) OWNER TO postgres;
 
 --
--- TOC entry 274 (class 1255 OID 16848)
+-- TOC entry 289 (class 1255 OID 17567)
 -- Name: expire_trial_period(); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
@@ -313,7 +307,7 @@ $$;
 ALTER FUNCTION public.expire_trial_period() OWNER TO postgres;
 
 --
--- TOC entry 273 (class 1255 OID 16846)
+-- TOC entry 290 (class 1255 OID 17568)
 -- Name: lock_user_account(); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
@@ -330,7 +324,7 @@ $$;
 ALTER FUNCTION public.lock_user_account() OWNER TO postgres;
 
 --
--- TOC entry 282 (class 1255 OID 16856)
+-- TOC entry 266 (class 1255 OID 17569)
 -- Name: remove_from_watchlist(); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
@@ -347,7 +341,7 @@ $$;
 ALTER FUNCTION public.remove_from_watchlist() OWNER TO postgres;
 
 --
--- TOC entry 275 (class 1255 OID 16850)
+-- TOC entry 267 (class 1255 OID 17570)
 -- Name: update_viewing_history(); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
@@ -369,7 +363,7 @@ $$;
 ALTER FUNCTION public.update_viewing_history() OWNER TO postgres;
 
 --
--- TOC entry 270 (class 1255 OID 16805)
+-- TOC entry 287 (class 1255 OID 17571)
 -- Name: updatepreferences(integer, boolean, integer, text); Type: PROCEDURE; Schema: public; Owner: postgres
 --
 
@@ -389,17 +383,29 @@ $$;
 ALTER PROCEDURE public.updatepreferences(IN profile_id integer, IN prefers_series boolean, IN min_age integer, IN genre text) OWNER TO postgres;
 
 --
--- TOC entry 272 (class 1255 OID 16807)
+-- TOC entry 269 (class 1255 OID 17572)
 -- Name: updatesubscription(integer, text); Type: PROCEDURE; Schema: public; Owner: postgres
 --
 
 CREATE PROCEDURE public.updatesubscription(IN user_id integer, IN new_plan text)
     LANGUAGE plpgsql
     AS $$
+DECLARE
+    current_date DATE := NOW();
+    user_subscription RECORD;
 BEGIN
-    UPDATE Subscriptions
-    SET plan = new_plan,
-        updated_at = NOW()
+    SELECT * INTO user_subscription FROM "Subscriptions" WHERE user_id = user_id AND end_date > current_date LIMIT 1;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'User does not have an active subscription.';
+    END IF;
+
+    UPDATE "Subscriptions"
+    SET type = new_plan
+    WHERE user_id = user_id;
+
+    UPDATE "Subscriptions"
+    SET start_date = current_date, end_date = current_date + INTERVAL '30 days'
     WHERE user_id = user_id;
 END;
 $$;
@@ -408,7 +414,7 @@ $$;
 ALTER PROCEDURE public.updatesubscription(IN user_id integer, IN new_plan text) OWNER TO postgres;
 
 --
--- TOC entry 276 (class 1255 OID 16852)
+-- TOC entry 270 (class 1255 OID 17573)
 -- Name: validate_profile_age(); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
@@ -431,28 +437,20 @@ SET default_tablespace = '';
 SET default_table_access_method = heap;
 
 --
--- TOC entry 242 (class 1259 OID 16638)
+-- TOC entry 217 (class 1259 OID 17574)
 -- Name: Genre; Type: TABLE; Schema: public; Owner: postgres
 --
 
 CREATE TABLE public."Genre" (
     genre_id integer NOT NULL,
-    preferences_id integer NOT NULL,
-    action boolean DEFAULT false,
-    adventure boolean DEFAULT false,
-    comedy boolean DEFAULT false,
-    crime boolean DEFAULT false,
-    drama boolean DEFAULT false,
-    horror boolean DEFAULT false,
-    romance boolean DEFAULT false,
-    science_fiction boolean DEFAULT false
+    title character varying(255)
 );
 
 
 ALTER TABLE public."Genre" OWNER TO postgres;
 
 --
--- TOC entry 240 (class 1259 OID 16636)
+-- TOC entry 218 (class 1259 OID 17577)
 -- Name: Genre_genre_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
@@ -468,8 +466,8 @@ CREATE SEQUENCE public."Genre_genre_id_seq"
 ALTER SEQUENCE public."Genre_genre_id_seq" OWNER TO postgres;
 
 --
--- TOC entry 5061 (class 0 OID 0)
--- Dependencies: 240
+-- TOC entry 5067 (class 0 OID 0)
+-- Dependencies: 218
 -- Name: Genre_genre_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
@@ -477,32 +475,7 @@ ALTER SEQUENCE public."Genre_genre_id_seq" OWNED BY public."Genre".genre_id;
 
 
 --
--- TOC entry 241 (class 1259 OID 16637)
--- Name: Genre_preferences_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
---
-
-CREATE SEQUENCE public."Genre_preferences_id_seq"
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
-ALTER SEQUENCE public."Genre_preferences_id_seq" OWNER TO postgres;
-
---
--- TOC entry 5062 (class 0 OID 0)
--- Dependencies: 241
--- Name: Genre_preferences_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
---
-
-ALTER SEQUENCE public."Genre_preferences_id_seq" OWNED BY public."Genre".preferences_id;
-
-
---
--- TOC entry 233 (class 1259 OID 16605)
+-- TOC entry 219 (class 1259 OID 17579)
 -- Name: Media; Type: TABLE; Schema: public; Owner: postgres
 --
 
@@ -512,15 +485,53 @@ CREATE TABLE public."Media" (
     episode_number integer DEFAULT 1,
     title character varying(255),
     duration time without time zone,
-    release_date timestamp without time zone,
-    available_qualities character varying(255)[]
+    release_date timestamp without time zone
 );
 
 
 ALTER TABLE public."Media" OWNER TO postgres;
 
 --
--- TOC entry 231 (class 1259 OID 16603)
+-- TOC entry 220 (class 1259 OID 17583)
+-- Name: MediaGenres_Junction; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public."MediaGenres_Junction" (
+    media_id integer NOT NULL,
+    genre_id integer NOT NULL
+);
+
+
+ALTER TABLE public."MediaGenres_Junction" OWNER TO postgres;
+
+--
+-- TOC entry 221 (class 1259 OID 17586)
+-- Name: MediaQualities_Junction; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public."MediaQualities_Junction" (
+    media_id integer NOT NULL,
+    quality_id integer NOT NULL
+);
+
+
+ALTER TABLE public."MediaQualities_Junction" OWNER TO postgres;
+
+--
+-- TOC entry 222 (class 1259 OID 17589)
+-- Name: MediaVClassification_Junction; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public."MediaVClassification_Junction" (
+    media_id integer NOT NULL,
+    vc_id integer NOT NULL
+);
+
+
+ALTER TABLE public."MediaVClassification_Junction" OWNER TO postgres;
+
+--
+-- TOC entry 223 (class 1259 OID 17592)
 -- Name: Media_media_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
@@ -536,8 +547,8 @@ CREATE SEQUENCE public."Media_media_id_seq"
 ALTER SEQUENCE public."Media_media_id_seq" OWNER TO postgres;
 
 --
--- TOC entry 5063 (class 0 OID 0)
--- Dependencies: 231
+-- TOC entry 5073 (class 0 OID 0)
+-- Dependencies: 223
 -- Name: Media_media_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
@@ -545,7 +556,7 @@ ALTER SEQUENCE public."Media_media_id_seq" OWNED BY public."Media".media_id;
 
 
 --
--- TOC entry 232 (class 1259 OID 16604)
+-- TOC entry 224 (class 1259 OID 17593)
 -- Name: Media_season_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
@@ -561,8 +572,8 @@ CREATE SEQUENCE public."Media_season_id_seq"
 ALTER SEQUENCE public."Media_season_id_seq" OWNER TO postgres;
 
 --
--- TOC entry 5064 (class 0 OID 0)
--- Dependencies: 232
+-- TOC entry 5075 (class 0 OID 0)
+-- Dependencies: 224
 -- Name: Media_season_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
@@ -570,76 +581,33 @@ ALTER SEQUENCE public."Media_season_id_seq" OWNED BY public."Media".season_id;
 
 
 --
--- TOC entry 239 (class 1259 OID 16626)
--- Name: Preferences; Type: TABLE; Schema: public; Owner: postgres
+-- TOC entry 225 (class 1259 OID 17594)
+-- Name: ProfileGenres_Junction; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public."Preferences" (
-    preferences_id integer NOT NULL,
+CREATE TABLE public."ProfileGenres_Junction" (
     profile_id integer NOT NULL,
-    content_type character varying(255),
-    viewing_classification character varying(255)[],
-    minimum_age integer DEFAULT 0,
-    CONSTRAINT fk_profile_id FOREIGN KEY (profile_id)
-        REFERENCES public."Profiles" (profile_id)
-        ON DELETE CASCADE
+    genre_id integer NOT NULL
 );
 
 
-ALTER TABLE public."Preferences" OWNER TO postgres;
+ALTER TABLE public."ProfileGenres_Junction" OWNER TO postgres;
 
 --
--- TOC entry 237 (class 1259 OID 16624)
--- Name: Preferences_preferences_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+-- TOC entry 226 (class 1259 OID 17597)
+-- Name: ProfileVClassification_Junction; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE SEQUENCE public."Preferences_preferences_id_seq"
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+CREATE TABLE public."ProfileVClassification_Junction" (
+    profile_id integer NOT NULL,
+    vc_id integer NOT NULL
+);
 
 
-ALTER SEQUENCE public."Preferences_preferences_id_seq" OWNER TO postgres;
+ALTER TABLE public."ProfileVClassification_Junction" OWNER TO postgres;
 
 --
--- TOC entry 5065 (class 0 OID 0)
--- Dependencies: 237
--- Name: Preferences_preferences_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
---
-
-ALTER SEQUENCE public."Preferences_preferences_id_seq" OWNED BY public."Preferences".preferences_id;
-
-
---
--- TOC entry 238 (class 1259 OID 16625)
--- Name: Preferences_profile_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
---
-
-CREATE SEQUENCE public."Preferences_profile_id_seq"
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
-ALTER SEQUENCE public."Preferences_profile_id_seq" OWNER TO postgres;
-
---
--- TOC entry 5066 (class 0 OID 0)
--- Dependencies: 238
--- Name: Preferences_profile_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
---
-
-ALTER SEQUENCE public."Preferences_profile_id_seq" OWNED BY public."Preferences".profile_id;
-
-
---
--- TOC entry 222 (class 1259 OID 16560)
+-- TOC entry 227 (class 1259 OID 17600)
 -- Name: Profiles; Type: TABLE; Schema: public; Owner: postgres
 --
 
@@ -651,17 +619,14 @@ CREATE TABLE public."Profiles" (
     photo_path character varying(255),
     child_profile boolean DEFAULT false,
     date_of_birth timestamp without time zone,
-    language character varying,
-    CONSTRAINT fk_user_id FOREIGN KEY (user_id)
-        REFERENCES public."Users" (user_id)
-        ON DELETE CASCADE
+    language character varying
 );
 
 
 ALTER TABLE public."Profiles" OWNER TO postgres;
 
 --
--- TOC entry 220 (class 1259 OID 16558)
+-- TOC entry 228 (class 1259 OID 17607)
 -- Name: Profiles_profile_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
@@ -677,8 +642,8 @@ CREATE SEQUENCE public."Profiles_profile_id_seq"
 ALTER SEQUENCE public."Profiles_profile_id_seq" OWNER TO postgres;
 
 --
--- TOC entry 5067 (class 0 OID 0)
--- Dependencies: 220
+-- TOC entry 5080 (class 0 OID 0)
+-- Dependencies: 228
 -- Name: Profiles_profile_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
@@ -686,7 +651,7 @@ ALTER SEQUENCE public."Profiles_profile_id_seq" OWNED BY public."Profiles".profi
 
 
 --
--- TOC entry 221 (class 1259 OID 16559)
+-- TOC entry 229 (class 1259 OID 17608)
 -- Name: Profiles_user_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
@@ -702,8 +667,8 @@ CREATE SEQUENCE public."Profiles_user_id_seq"
 ALTER SEQUENCE public."Profiles_user_id_seq" OWNER TO postgres;
 
 --
--- TOC entry 5068 (class 0 OID 0)
--- Dependencies: 221
+-- TOC entry 5082 (class 0 OID 0)
+-- Dependencies: 229
 -- Name: Profiles_user_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
@@ -711,7 +676,45 @@ ALTER SEQUENCE public."Profiles_user_id_seq" OWNED BY public."Profiles".user_id;
 
 
 --
--- TOC entry 230 (class 1259 OID 16595)
+-- TOC entry 230 (class 1259 OID 17609)
+-- Name: Qualities; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public."Qualities" (
+    quality_id integer NOT NULL,
+    type "char" NOT NULL
+);
+
+
+ALTER TABLE public."Qualities" OWNER TO postgres;
+
+--
+-- TOC entry 231 (class 1259 OID 17612)
+-- Name: Qualities_quality_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public."Qualities_quality_id_seq"
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public."Qualities_quality_id_seq" OWNER TO postgres;
+
+--
+-- TOC entry 5085 (class 0 OID 0)
+-- Dependencies: 231
+-- Name: Qualities_quality_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public."Qualities_quality_id_seq" OWNED BY public."Qualities".quality_id;
+
+
+--
+-- TOC entry 232 (class 1259 OID 17613)
 -- Name: Seasons; Type: TABLE; Schema: public; Owner: postgres
 --
 
@@ -726,7 +729,7 @@ CREATE TABLE public."Seasons" (
 ALTER TABLE public."Seasons" OWNER TO postgres;
 
 --
--- TOC entry 228 (class 1259 OID 16593)
+-- TOC entry 233 (class 1259 OID 17617)
 -- Name: Seasons_season_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
@@ -742,8 +745,8 @@ CREATE SEQUENCE public."Seasons_season_id_seq"
 ALTER SEQUENCE public."Seasons_season_id_seq" OWNER TO postgres;
 
 --
--- TOC entry 5069 (class 0 OID 0)
--- Dependencies: 228
+-- TOC entry 5088 (class 0 OID 0)
+-- Dependencies: 233
 -- Name: Seasons_season_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
@@ -751,7 +754,7 @@ ALTER SEQUENCE public."Seasons_season_id_seq" OWNED BY public."Seasons".season_i
 
 
 --
--- TOC entry 229 (class 1259 OID 16594)
+-- TOC entry 234 (class 1259 OID 17618)
 -- Name: Seasons_series_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
@@ -767,8 +770,8 @@ CREATE SEQUENCE public."Seasons_series_id_seq"
 ALTER SEQUENCE public."Seasons_series_id_seq" OWNER TO postgres;
 
 --
--- TOC entry 5070 (class 0 OID 0)
--- Dependencies: 229
+-- TOC entry 5090 (class 0 OID 0)
+-- Dependencies: 234
 -- Name: Seasons_series_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
@@ -776,7 +779,7 @@ ALTER SEQUENCE public."Seasons_series_id_seq" OWNED BY public."Seasons".series_i
 
 
 --
--- TOC entry 227 (class 1259 OID 16584)
+-- TOC entry 235 (class 1259 OID 17619)
 -- Name: Series; Type: TABLE; Schema: public; Owner: postgres
 --
 
@@ -784,16 +787,40 @@ CREATE TABLE public."Series" (
     series_id integer NOT NULL,
     title character varying(255),
     age_restriction integer DEFAULT 0,
-    start_date timestamp without time zone,
-    genre character varying(255)[],
-    viewing_classification character varying(255)[]
+    start_date timestamp without time zone
 );
 
 
 ALTER TABLE public."Series" OWNER TO postgres;
 
 --
--- TOC entry 226 (class 1259 OID 16583)
+-- TOC entry 236 (class 1259 OID 17623)
+-- Name: SeriesGenres_Junction; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public."SeriesGenres_Junction" (
+    series_id integer NOT NULL,
+    genre_id integer NOT NULL
+);
+
+
+ALTER TABLE public."SeriesGenres_Junction" OWNER TO postgres;
+
+--
+-- TOC entry 237 (class 1259 OID 17626)
+-- Name: SeriesVClassification_Junction; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public."SeriesVClassification_Junction" (
+    series_id integer NOT NULL,
+    vc_id integer NOT NULL
+);
+
+
+ALTER TABLE public."SeriesVClassification_Junction" OWNER TO postgres;
+
+--
+-- TOC entry 238 (class 1259 OID 17629)
 -- Name: Series_series_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
@@ -809,8 +836,8 @@ CREATE SEQUENCE public."Series_series_id_seq"
 ALTER SEQUENCE public."Series_series_id_seq" OWNER TO postgres;
 
 --
--- TOC entry 5071 (class 0 OID 0)
--- Dependencies: 226
+-- TOC entry 5095 (class 0 OID 0)
+-- Dependencies: 238
 -- Name: Series_series_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
@@ -818,7 +845,7 @@ ALTER SEQUENCE public."Series_series_id_seq" OWNED BY public."Series".series_id;
 
 
 --
--- TOC entry 225 (class 1259 OID 16573)
+-- TOC entry 239 (class 1259 OID 17630)
 -- Name: Subscriptions; Type: TABLE; Schema: public; Owner: postgres
 --
 
@@ -836,7 +863,7 @@ CREATE TABLE public."Subscriptions" (
 ALTER TABLE public."Subscriptions" OWNER TO postgres;
 
 --
--- TOC entry 223 (class 1259 OID 16571)
+-- TOC entry 240 (class 1259 OID 17636)
 -- Name: Subscriptions_subscription_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
@@ -852,8 +879,8 @@ CREATE SEQUENCE public."Subscriptions_subscription_id_seq"
 ALTER SEQUENCE public."Subscriptions_subscription_id_seq" OWNER TO postgres;
 
 --
--- TOC entry 5072 (class 0 OID 0)
--- Dependencies: 223
+-- TOC entry 5098 (class 0 OID 0)
+-- Dependencies: 240
 -- Name: Subscriptions_subscription_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
@@ -861,7 +888,7 @@ ALTER SEQUENCE public."Subscriptions_subscription_id_seq" OWNED BY public."Subsc
 
 
 --
--- TOC entry 224 (class 1259 OID 16572)
+-- TOC entry 241 (class 1259 OID 17637)
 -- Name: Subscriptions_user_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
@@ -877,8 +904,8 @@ CREATE SEQUENCE public."Subscriptions_user_id_seq"
 ALTER SEQUENCE public."Subscriptions_user_id_seq" OWNER TO postgres;
 
 --
--- TOC entry 5073 (class 0 OID 0)
--- Dependencies: 224
+-- TOC entry 5100 (class 0 OID 0)
+-- Dependencies: 241
 -- Name: Subscriptions_user_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
@@ -886,7 +913,7 @@ ALTER SEQUENCE public."Subscriptions_user_id_seq" OWNED BY public."Subscriptions
 
 
 --
--- TOC entry 236 (class 1259 OID 16617)
+-- TOC entry 242 (class 1259 OID 17638)
 -- Name: Subtitles; Type: TABLE; Schema: public; Owner: postgres
 --
 
@@ -899,7 +926,7 @@ CREATE TABLE public."Subtitles" (
 ALTER TABLE public."Subtitles" OWNER TO postgres;
 
 --
--- TOC entry 235 (class 1259 OID 16616)
+-- TOC entry 243 (class 1259 OID 17641)
 -- Name: Subtitles_media_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
@@ -915,8 +942,8 @@ CREATE SEQUENCE public."Subtitles_media_id_seq"
 ALTER SEQUENCE public."Subtitles_media_id_seq" OWNER TO postgres;
 
 --
--- TOC entry 5074 (class 0 OID 0)
--- Dependencies: 235
+-- TOC entry 5103 (class 0 OID 0)
+-- Dependencies: 243
 -- Name: Subtitles_media_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
@@ -924,7 +951,7 @@ ALTER SEQUENCE public."Subtitles_media_id_seq" OWNED BY public."Subtitles".media
 
 
 --
--- TOC entry 234 (class 1259 OID 16615)
+-- TOC entry 244 (class 1259 OID 17642)
 -- Name: Subtitles_subtitles_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
@@ -940,8 +967,8 @@ CREATE SEQUENCE public."Subtitles_subtitles_id_seq"
 ALTER SEQUENCE public."Subtitles_subtitles_id_seq" OWNER TO postgres;
 
 --
--- TOC entry 5075 (class 0 OID 0)
--- Dependencies: 234
+-- TOC entry 5105 (class 0 OID 0)
+-- Dependencies: 244
 -- Name: Subtitles_subtitles_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
@@ -949,7 +976,7 @@ ALTER SEQUENCE public."Subtitles_subtitles_id_seq" OWNED BY public."Subtitles".s
 
 
 --
--- TOC entry 219 (class 1259 OID 16543)
+-- TOC entry 245 (class 1259 OID 17643)
 -- Name: Users; Type: TABLE; Schema: public; Owner: postgres
 --
 
@@ -958,11 +985,11 @@ CREATE TABLE public."Users" (
     email character varying(255) NOT NULL,
     password character varying(255) NOT NULL,
     failed_login_attempts integer DEFAULT 0,
-    activation_status boolean DEFAULT true,
+    activation_status character varying,
     locked_until timestamp with time zone,
     referral_id integer NOT NULL,
     referral_code character varying(50),
-    has_disconnected boolean DEFAULT false,
+    has_discount boolean DEFAULT false,
     trial_available boolean DEFAULT true
 );
 
@@ -970,7 +997,7 @@ CREATE TABLE public."Users" (
 ALTER TABLE public."Users" OWNER TO postgres;
 
 --
--- TOC entry 218 (class 1259 OID 16542)
+-- TOC entry 246 (class 1259 OID 17651)
 -- Name: Users_referral_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
@@ -986,8 +1013,8 @@ CREATE SEQUENCE public."Users_referral_id_seq"
 ALTER SEQUENCE public."Users_referral_id_seq" OWNER TO postgres;
 
 --
--- TOC entry 5076 (class 0 OID 0)
--- Dependencies: 218
+-- TOC entry 5108 (class 0 OID 0)
+-- Dependencies: 246
 -- Name: Users_referral_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
@@ -995,7 +1022,7 @@ ALTER SEQUENCE public."Users_referral_id_seq" OWNED BY public."Users".referral_i
 
 
 --
--- TOC entry 217 (class 1259 OID 16541)
+-- TOC entry 247 (class 1259 OID 17652)
 -- Name: Users_user_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
@@ -1011,8 +1038,8 @@ CREATE SEQUENCE public."Users_user_id_seq"
 ALTER SEQUENCE public."Users_user_id_seq" OWNER TO postgres;
 
 --
--- TOC entry 5077 (class 0 OID 0)
--- Dependencies: 217
+-- TOC entry 5110 (class 0 OID 0)
+-- Dependencies: 247
 -- Name: Users_user_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
@@ -1020,57 +1047,20 @@ ALTER SEQUENCE public."Users_user_id_seq" OWNED BY public."Users".user_id;
 
 
 --
--- TOC entry 245 (class 1259 OID 16655)
--- Name: Viewing Classification; Type: TABLE; Schema: public; Owner: postgres
+-- TOC entry 248 (class 1259 OID 17653)
+-- Name: ViewingClassification; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public."Viewing Classification" (
-    viewing_classification_id integer NOT NULL,
-    preferences_id integer NOT NULL,
-    "6years" boolean DEFAULT false,
-    "9years" boolean DEFAULT false,
-    "12years" boolean DEFAULT false,
-    "16years" boolean DEFAULT false,
-    over_18years boolean DEFAULT false,
-    violence boolean DEFAULT false,
-    sex boolean DEFAULT false,
-    terror boolean DEFAULT false,
-    descrimination boolean DEFAULT false,
-    drug_abuse boolean DEFAULT false,
-    alcohol_abuse boolean DEFAULT false,
-    coarse_language boolean DEFAULT false
+CREATE TABLE public."ViewingClassification" (
+    id integer NOT NULL,
+    type "char" NOT NULL
 );
 
 
-ALTER TABLE public."Viewing Classification" OWNER TO postgres;
+ALTER TABLE public."ViewingClassification" OWNER TO postgres;
 
 --
--- TOC entry 244 (class 1259 OID 16654)
--- Name: Viewing Classification_preferences_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
---
-
-CREATE SEQUENCE public."Viewing Classification_preferences_id_seq"
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
-ALTER SEQUENCE public."Viewing Classification_preferences_id_seq" OWNER TO postgres;
-
---
--- TOC entry 5078 (class 0 OID 0)
--- Dependencies: 244
--- Name: Viewing Classification_preferences_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
---
-
-ALTER SEQUENCE public."Viewing Classification_preferences_id_seq" OWNED BY public."Viewing Classification".preferences_id;
-
-
---
--- TOC entry 243 (class 1259 OID 16653)
+-- TOC entry 249 (class 1259 OID 17656)
 -- Name: Viewing Classification_viewing_classification_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
@@ -1086,20 +1076,20 @@ CREATE SEQUENCE public."Viewing Classification_viewing_classification_id_seq"
 ALTER SEQUENCE public."Viewing Classification_viewing_classification_id_seq" OWNER TO postgres;
 
 --
--- TOC entry 5079 (class 0 OID 0)
--- Dependencies: 243
+-- TOC entry 5113 (class 0 OID 0)
+-- Dependencies: 249
 -- Name: Viewing Classification_viewing_classification_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
-ALTER SEQUENCE public."Viewing Classification_viewing_classification_id_seq" OWNED BY public."Viewing Classification".viewing_classification_id;
+ALTER SEQUENCE public."Viewing Classification_viewing_classification_id_seq" OWNED BY public."ViewingClassification".id;
 
 
 --
--- TOC entry 249 (class 1259 OID 16677)
--- Name: Watch History; Type: TABLE; Schema: public; Owner: postgres
+-- TOC entry 250 (class 1259 OID 17657)
+-- Name: WatchHistory; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public."Watch History" (
+CREATE TABLE public."WatchHistory" (
     history_id integer NOT NULL,
     profile_id integer NOT NULL,
     media_id integer NOT NULL,
@@ -1110,10 +1100,10 @@ CREATE TABLE public."Watch History" (
 );
 
 
-ALTER TABLE public."Watch History" OWNER TO postgres;
+ALTER TABLE public."WatchHistory" OWNER TO postgres;
 
 --
--- TOC entry 246 (class 1259 OID 16674)
+-- TOC entry 251 (class 1259 OID 17661)
 -- Name: Watch History_history_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
@@ -1129,16 +1119,16 @@ CREATE SEQUENCE public."Watch History_history_id_seq"
 ALTER SEQUENCE public."Watch History_history_id_seq" OWNER TO postgres;
 
 --
--- TOC entry 5080 (class 0 OID 0)
--- Dependencies: 246
+-- TOC entry 5116 (class 0 OID 0)
+-- Dependencies: 251
 -- Name: Watch History_history_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
-ALTER SEQUENCE public."Watch History_history_id_seq" OWNED BY public."Watch History".history_id;
+ALTER SEQUENCE public."Watch History_history_id_seq" OWNED BY public."WatchHistory".history_id;
 
 
 --
--- TOC entry 248 (class 1259 OID 16676)
+-- TOC entry 252 (class 1259 OID 17662)
 -- Name: Watch History_media_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
@@ -1154,16 +1144,16 @@ CREATE SEQUENCE public."Watch History_media_id_seq"
 ALTER SEQUENCE public."Watch History_media_id_seq" OWNER TO postgres;
 
 --
--- TOC entry 5081 (class 0 OID 0)
--- Dependencies: 248
+-- TOC entry 5118 (class 0 OID 0)
+-- Dependencies: 252
 -- Name: Watch History_media_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
-ALTER SEQUENCE public."Watch History_media_id_seq" OWNED BY public."Watch History".media_id;
+ALTER SEQUENCE public."Watch History_media_id_seq" OWNED BY public."WatchHistory".media_id;
 
 
 --
--- TOC entry 247 (class 1259 OID 16675)
+-- TOC entry 253 (class 1259 OID 17663)
 -- Name: Watch History_profile_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
@@ -1179,16 +1169,16 @@ CREATE SEQUENCE public."Watch History_profile_id_seq"
 ALTER SEQUENCE public."Watch History_profile_id_seq" OWNER TO postgres;
 
 --
--- TOC entry 5082 (class 0 OID 0)
--- Dependencies: 247
+-- TOC entry 5120 (class 0 OID 0)
+-- Dependencies: 253
 -- Name: Watch History_profile_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
-ALTER SEQUENCE public."Watch History_profile_id_seq" OWNED BY public."Watch History".profile_id;
+ALTER SEQUENCE public."Watch History_profile_id_seq" OWNED BY public."WatchHistory".profile_id;
 
 
 --
--- TOC entry 253 (class 1259 OID 16689)
+-- TOC entry 254 (class 1259 OID 17664)
 -- Name: WatchLists; Type: TABLE; Schema: public; Owner: postgres
 --
 
@@ -1203,7 +1193,7 @@ CREATE TABLE public."WatchLists" (
 ALTER TABLE public."WatchLists" OWNER TO postgres;
 
 --
--- TOC entry 250 (class 1259 OID 16686)
+-- TOC entry 255 (class 1259 OID 17667)
 -- Name: WatchLists_list_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
@@ -1219,8 +1209,8 @@ CREATE SEQUENCE public."WatchLists_list_id_seq"
 ALTER SEQUENCE public."WatchLists_list_id_seq" OWNER TO postgres;
 
 --
--- TOC entry 5083 (class 0 OID 0)
--- Dependencies: 250
+-- TOC entry 5123 (class 0 OID 0)
+-- Dependencies: 255
 -- Name: WatchLists_list_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
@@ -1228,7 +1218,7 @@ ALTER SEQUENCE public."WatchLists_list_id_seq" OWNED BY public."WatchLists".list
 
 
 --
--- TOC entry 252 (class 1259 OID 16688)
+-- TOC entry 256 (class 1259 OID 17668)
 -- Name: WatchLists_media_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
@@ -1244,8 +1234,8 @@ CREATE SEQUENCE public."WatchLists_media_id_seq"
 ALTER SEQUENCE public."WatchLists_media_id_seq" OWNER TO postgres;
 
 --
--- TOC entry 5084 (class 0 OID 0)
--- Dependencies: 252
+-- TOC entry 5125 (class 0 OID 0)
+-- Dependencies: 256
 -- Name: WatchLists_media_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
@@ -1253,7 +1243,7 @@ ALTER SEQUENCE public."WatchLists_media_id_seq" OWNED BY public."WatchLists".med
 
 
 --
--- TOC entry 251 (class 1259 OID 16687)
+-- TOC entry 257 (class 1259 OID 17669)
 -- Name: WatchLists_profile_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
@@ -1269,8 +1259,8 @@ CREATE SEQUENCE public."WatchLists_profile_id_seq"
 ALTER SEQUENCE public."WatchLists_profile_id_seq" OWNER TO postgres;
 
 --
--- TOC entry 5085 (class 0 OID 0)
--- Dependencies: 251
+-- TOC entry 5127 (class 0 OID 0)
+-- Dependencies: 257
 -- Name: WatchLists_profile_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
@@ -1278,27 +1268,7 @@ ALTER SEQUENCE public."WatchLists_profile_id_seq" OWNED BY public."WatchLists".p
 
 
 --
--- TOC entry 257 (class 1259 OID 16820)
--- Name: genre_details; Type: VIEW; Schema: public; Owner: postgres
---
-
-CREATE VIEW public.genre_details AS
- SELECT preferences_id,
-    action,
-    adventure,
-    comedy,
-    crime,
-    drama,
-    horror,
-    romance,
-    science_fiction
-   FROM public."Genre" g;
-
-
-ALTER VIEW public.genre_details OWNER TO postgres;
-
---
--- TOC entry 261 (class 1259 OID 16836)
+-- TOC entry 258 (class 1259 OID 17670)
 -- Name: media_details; Type: VIEW; Schema: public; Owner: postgres
 --
 
@@ -1309,7 +1279,6 @@ CREATE VIEW public.media_details AS
     m.title AS media_title,
     m.duration AS media_duration,
     m.release_date AS media_release_date,
-    m.available_qualities AS media_qualities,
     s.title AS series_title,
     ss.season_number
    FROM ((public."Media" m
@@ -1320,30 +1289,7 @@ CREATE VIEW public.media_details AS
 ALTER VIEW public.media_details OWNER TO postgres;
 
 --
--- TOC entry 255 (class 1259 OID 16812)
--- Name: profile_details; Type: VIEW; Schema: public; Owner: postgres
---
-
-CREATE VIEW public.profile_details AS
- SELECT p.profile_id,
-    p.user_id,
-    p.name AS profile_name,
-    p.age,
-    p.photo_path,
-    p.child_profile,
-    p.language,
-    p.date_of_birth,
-    pr.content_type AS preference_content_type,
-    pr.minimum_age AS preference_minimum_age,
-    pr.viewing_classification AS preference_viewing_classifications
-   FROM (public."Profiles" p
-     LEFT JOIN public."Preferences" pr ON ((p.profile_id = pr.profile_id)));
-
-
-ALTER VIEW public.profile_details OWNER TO postgres;
-
---
--- TOC entry 260 (class 1259 OID 16832)
+-- TOC entry 259 (class 1259 OID 17674)
 -- Name: series_and_seasons; Type: VIEW; Schema: public; Owner: postgres
 --
 
@@ -1352,8 +1298,6 @@ CREATE VIEW public.series_and_seasons AS
     s.title AS series_title,
     s.age_restriction,
     s.start_date AS series_start_date,
-    s.genre AS series_genres,
-    s.viewing_classification AS series_viewing_classifications,
     ss.season_id,
     ss.season_number,
     ss.release_date AS season_release_date
@@ -1364,7 +1308,7 @@ CREATE VIEW public.series_and_seasons AS
 ALTER VIEW public.series_and_seasons OWNER TO postgres;
 
 --
--- TOC entry 262 (class 1259 OID 16841)
+-- TOC entry 260 (class 1259 OID 17678)
 -- Name: subscription_referral_stats; Type: VIEW; Schema: public; Owner: postgres
 --
 
@@ -1384,7 +1328,7 @@ CREATE VIEW public.subscription_referral_stats AS
 ALTER VIEW public.subscription_referral_stats OWNER TO postgres;
 
 --
--- TOC entry 254 (class 1259 OID 16808)
+-- TOC entry 261 (class 1259 OID 17683)
 -- Name: user_details; Type: VIEW; Schema: public; Owner: postgres
 --
 
@@ -1406,31 +1350,7 @@ CREATE VIEW public.user_details AS
 ALTER VIEW public.user_details OWNER TO postgres;
 
 --
--- TOC entry 256 (class 1259 OID 16816)
--- Name: viewing_classifications; Type: VIEW; Schema: public; Owner: postgres
---
-
-CREATE VIEW public.viewing_classifications AS
- SELECT preferences_id,
-    "6years" AS under_6,
-    "9years" AS under_9,
-    "12years" AS under_12,
-    "16years" AS under_16,
-    over_18years AS over_18,
-    violence,
-    sex,
-    terror,
-    descrimination,
-    drug_abuse,
-    alcohol_abuse,
-    coarse_language
-   FROM public."Viewing Classification" vc;
-
-
-ALTER VIEW public.viewing_classifications OWNER TO postgres;
-
---
--- TOC entry 258 (class 1259 OID 16824)
+-- TOC entry 262 (class 1259 OID 17688)
 -- Name: watch_history_details; Type: VIEW; Schema: public; Owner: postgres
 --
 
@@ -1444,14 +1364,14 @@ CREATE VIEW public.watch_history_details AS
     wh.viewing_status,
     m.title AS media_title,
     m.duration AS media_duration
-   FROM (public."Watch History" wh
+   FROM (public."WatchHistory" wh
      LEFT JOIN public."Media" m ON ((wh.media_id = m.media_id)));
 
 
 ALTER VIEW public.watch_history_details OWNER TO postgres;
 
 --
--- TOC entry 259 (class 1259 OID 16828)
+-- TOC entry 263 (class 1259 OID 17692)
 -- Name: watch_list_details; Type: VIEW; Schema: public; Owner: postgres
 --
 
@@ -1469,7 +1389,7 @@ CREATE VIEW public.watch_list_details AS
 ALTER VIEW public.watch_list_details OWNER TO postgres;
 
 --
--- TOC entry 4787 (class 2604 OID 16641)
+-- TOC entry 4774 (class 2604 OID 17696)
 -- Name: Genre genre_id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -1477,15 +1397,7 @@ ALTER TABLE ONLY public."Genre" ALTER COLUMN genre_id SET DEFAULT nextval('publi
 
 
 --
--- TOC entry 4788 (class 2604 OID 16642)
--- Name: Genre preferences_id; Type: DEFAULT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public."Genre" ALTER COLUMN preferences_id SET DEFAULT nextval('public."Genre_preferences_id_seq"'::regclass);
-
-
---
--- TOC entry 4779 (class 2604 OID 16608)
+-- TOC entry 4775 (class 2604 OID 17698)
 -- Name: Media media_id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -1493,7 +1405,7 @@ ALTER TABLE ONLY public."Media" ALTER COLUMN media_id SET DEFAULT nextval('publi
 
 
 --
--- TOC entry 4780 (class 2604 OID 16609)
+-- TOC entry 4776 (class 2604 OID 17699)
 -- Name: Media season_id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -1501,23 +1413,7 @@ ALTER TABLE ONLY public."Media" ALTER COLUMN season_id SET DEFAULT nextval('publ
 
 
 --
--- TOC entry 4784 (class 2604 OID 16629)
--- Name: Preferences preferences_id; Type: DEFAULT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public."Preferences" ALTER COLUMN preferences_id SET DEFAULT nextval('public."Preferences_preferences_id_seq"'::regclass);
-
-
---
--- TOC entry 4785 (class 2604 OID 16630)
--- Name: Preferences profile_id; Type: DEFAULT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public."Preferences" ALTER COLUMN profile_id SET DEFAULT nextval('public."Preferences_profile_id_seq"'::regclass);
-
-
---
--- TOC entry 4767 (class 2604 OID 16563)
+-- TOC entry 4778 (class 2604 OID 17700)
 -- Name: Profiles profile_id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -1525,7 +1421,7 @@ ALTER TABLE ONLY public."Profiles" ALTER COLUMN profile_id SET DEFAULT nextval('
 
 
 --
--- TOC entry 4768 (class 2604 OID 16564)
+-- TOC entry 4779 (class 2604 OID 17701)
 -- Name: Profiles user_id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -1533,7 +1429,15 @@ ALTER TABLE ONLY public."Profiles" ALTER COLUMN user_id SET DEFAULT nextval('pub
 
 
 --
--- TOC entry 4776 (class 2604 OID 16598)
+-- TOC entry 4782 (class 2604 OID 17702)
+-- Name: Qualities quality_id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public."Qualities" ALTER COLUMN quality_id SET DEFAULT nextval('public."Qualities_quality_id_seq"'::regclass);
+
+
+--
+-- TOC entry 4783 (class 2604 OID 17703)
 -- Name: Seasons season_id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -1541,7 +1445,7 @@ ALTER TABLE ONLY public."Seasons" ALTER COLUMN season_id SET DEFAULT nextval('pu
 
 
 --
--- TOC entry 4777 (class 2604 OID 16599)
+-- TOC entry 4784 (class 2604 OID 17704)
 -- Name: Seasons series_id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -1549,7 +1453,7 @@ ALTER TABLE ONLY public."Seasons" ALTER COLUMN series_id SET DEFAULT nextval('pu
 
 
 --
--- TOC entry 4774 (class 2604 OID 16587)
+-- TOC entry 4786 (class 2604 OID 17705)
 -- Name: Series series_id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -1557,7 +1461,7 @@ ALTER TABLE ONLY public."Series" ALTER COLUMN series_id SET DEFAULT nextval('pub
 
 
 --
--- TOC entry 4771 (class 2604 OID 16576)
+-- TOC entry 4788 (class 2604 OID 17706)
 -- Name: Subscriptions subscription_id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -1565,7 +1469,7 @@ ALTER TABLE ONLY public."Subscriptions" ALTER COLUMN subscription_id SET DEFAULT
 
 
 --
--- TOC entry 4772 (class 2604 OID 16577)
+-- TOC entry 4789 (class 2604 OID 17707)
 -- Name: Subscriptions user_id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -1573,7 +1477,7 @@ ALTER TABLE ONLY public."Subscriptions" ALTER COLUMN user_id SET DEFAULT nextval
 
 
 --
--- TOC entry 4782 (class 2604 OID 16620)
+-- TOC entry 4791 (class 2604 OID 17708)
 -- Name: Subtitles subtitles_id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -1581,7 +1485,7 @@ ALTER TABLE ONLY public."Subtitles" ALTER COLUMN subtitles_id SET DEFAULT nextva
 
 
 --
--- TOC entry 4783 (class 2604 OID 16621)
+-- TOC entry 4792 (class 2604 OID 17709)
 -- Name: Subtitles media_id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -1589,7 +1493,7 @@ ALTER TABLE ONLY public."Subtitles" ALTER COLUMN media_id SET DEFAULT nextval('p
 
 
 --
--- TOC entry 4761 (class 2604 OID 16546)
+-- TOC entry 4793 (class 2604 OID 17710)
 -- Name: Users user_id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -1597,7 +1501,7 @@ ALTER TABLE ONLY public."Users" ALTER COLUMN user_id SET DEFAULT nextval('public
 
 
 --
--- TOC entry 4764 (class 2604 OID 16549)
+-- TOC entry 4795 (class 2604 OID 17711)
 -- Name: Users referral_id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -1605,47 +1509,39 @@ ALTER TABLE ONLY public."Users" ALTER COLUMN referral_id SET DEFAULT nextval('pu
 
 
 --
--- TOC entry 4797 (class 2604 OID 16658)
--- Name: Viewing Classification viewing_classification_id; Type: DEFAULT; Schema: public; Owner: postgres
+-- TOC entry 4798 (class 2604 OID 17712)
+-- Name: ViewingClassification id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
-ALTER TABLE ONLY public."Viewing Classification" ALTER COLUMN viewing_classification_id SET DEFAULT nextval('public."Viewing Classification_viewing_classification_id_seq"'::regclass);
-
-
---
--- TOC entry 4798 (class 2604 OID 16659)
--- Name: Viewing Classification preferences_id; Type: DEFAULT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public."Viewing Classification" ALTER COLUMN preferences_id SET DEFAULT nextval('public."Viewing Classification_preferences_id_seq"'::regclass);
+ALTER TABLE ONLY public."ViewingClassification" ALTER COLUMN id SET DEFAULT nextval('public."Viewing Classification_viewing_classification_id_seq"'::regclass);
 
 
 --
--- TOC entry 4811 (class 2604 OID 16680)
--- Name: Watch History history_id; Type: DEFAULT; Schema: public; Owner: postgres
+-- TOC entry 4799 (class 2604 OID 17713)
+-- Name: WatchHistory history_id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
-ALTER TABLE ONLY public."Watch History" ALTER COLUMN history_id SET DEFAULT nextval('public."Watch History_history_id_seq"'::regclass);
-
-
---
--- TOC entry 4812 (class 2604 OID 16681)
--- Name: Watch History profile_id; Type: DEFAULT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public."Watch History" ALTER COLUMN profile_id SET DEFAULT nextval('public."Watch History_profile_id_seq"'::regclass);
+ALTER TABLE ONLY public."WatchHistory" ALTER COLUMN history_id SET DEFAULT nextval('public."Watch History_history_id_seq"'::regclass);
 
 
 --
--- TOC entry 4813 (class 2604 OID 16682)
--- Name: Watch History media_id; Type: DEFAULT; Schema: public; Owner: postgres
+-- TOC entry 4800 (class 2604 OID 17714)
+-- Name: WatchHistory profile_id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
-ALTER TABLE ONLY public."Watch History" ALTER COLUMN media_id SET DEFAULT nextval('public."Watch History_media_id_seq"'::regclass);
+ALTER TABLE ONLY public."WatchHistory" ALTER COLUMN profile_id SET DEFAULT nextval('public."Watch History_profile_id_seq"'::regclass);
 
 
 --
--- TOC entry 4815 (class 2604 OID 16692)
+-- TOC entry 4801 (class 2604 OID 17715)
+-- Name: WatchHistory media_id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public."WatchHistory" ALTER COLUMN media_id SET DEFAULT nextval('public."Watch History_media_id_seq"'::regclass);
+
+
+--
+-- TOC entry 4803 (class 2604 OID 17716)
 -- Name: WatchLists list_id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -1653,7 +1549,7 @@ ALTER TABLE ONLY public."WatchLists" ALTER COLUMN list_id SET DEFAULT nextval('p
 
 
 --
--- TOC entry 4816 (class 2604 OID 16693)
+-- TOC entry 4804 (class 2604 OID 17717)
 -- Name: WatchLists profile_id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -1661,7 +1557,7 @@ ALTER TABLE ONLY public."WatchLists" ALTER COLUMN profile_id SET DEFAULT nextval
 
 
 --
--- TOC entry 4817 (class 2604 OID 16694)
+-- TOC entry 4805 (class 2604 OID 17718)
 -- Name: WatchLists media_id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -1669,7 +1565,399 @@ ALTER TABLE ONLY public."WatchLists" ALTER COLUMN media_id SET DEFAULT nextval('
 
 
 --
--- TOC entry 4837 (class 2606 OID 16652)
+-- TOC entry 5014 (class 0 OID 17574)
+-- Dependencies: 217
+-- Data for Name: Genre; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public."Genre" (genre_id, title) FROM stdin;
+\.
+
+
+--
+-- TOC entry 5016 (class 0 OID 17579)
+-- Dependencies: 219
+-- Data for Name: Media; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public."Media" (media_id, season_id, episode_number, title, duration, release_date) FROM stdin;
+\.
+
+
+--
+-- TOC entry 5017 (class 0 OID 17583)
+-- Dependencies: 220
+-- Data for Name: MediaGenres_Junction; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public."MediaGenres_Junction" (media_id, genre_id) FROM stdin;
+\.
+
+
+--
+-- TOC entry 5018 (class 0 OID 17586)
+-- Dependencies: 221
+-- Data for Name: MediaQualities_Junction; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public."MediaQualities_Junction" (media_id, quality_id) FROM stdin;
+\.
+
+
+--
+-- TOC entry 5019 (class 0 OID 17589)
+-- Dependencies: 222
+-- Data for Name: MediaVClassification_Junction; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public."MediaVClassification_Junction" (media_id, vc_id) FROM stdin;
+\.
+
+
+--
+-- TOC entry 5022 (class 0 OID 17594)
+-- Dependencies: 225
+-- Data for Name: ProfileGenres_Junction; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public."ProfileGenres_Junction" (profile_id, genre_id) FROM stdin;
+\.
+
+
+--
+-- TOC entry 5023 (class 0 OID 17597)
+-- Dependencies: 226
+-- Data for Name: ProfileVClassification_Junction; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public."ProfileVClassification_Junction" (profile_id, vc_id) FROM stdin;
+\.
+
+
+--
+-- TOC entry 5024 (class 0 OID 17600)
+-- Dependencies: 227
+-- Data for Name: Profiles; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public."Profiles" (profile_id, user_id, age, name, photo_path, child_profile, date_of_birth, language) FROM stdin;
+\.
+
+
+--
+-- TOC entry 5027 (class 0 OID 17609)
+-- Dependencies: 230
+-- Data for Name: Qualities; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public."Qualities" (quality_id, type) FROM stdin;
+\.
+
+
+--
+-- TOC entry 5029 (class 0 OID 17613)
+-- Dependencies: 232
+-- Data for Name: Seasons; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public."Seasons" (season_id, series_id, season_number, release_date) FROM stdin;
+\.
+
+
+--
+-- TOC entry 5032 (class 0 OID 17619)
+-- Dependencies: 235
+-- Data for Name: Series; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public."Series" (series_id, title, age_restriction, start_date) FROM stdin;
+\.
+
+
+--
+-- TOC entry 5033 (class 0 OID 17623)
+-- Dependencies: 236
+-- Data for Name: SeriesGenres_Junction; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public."SeriesGenres_Junction" (series_id, genre_id) FROM stdin;
+\.
+
+
+--
+-- TOC entry 5034 (class 0 OID 17626)
+-- Dependencies: 237
+-- Data for Name: SeriesVClassification_Junction; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public."SeriesVClassification_Junction" (series_id, vc_id) FROM stdin;
+\.
+
+
+--
+-- TOC entry 5036 (class 0 OID 17630)
+-- Dependencies: 239
+-- Data for Name: Subscriptions; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public."Subscriptions" (subscription_id, user_id, price, type, description, start_date, end_date) FROM stdin;
+\.
+
+
+--
+-- TOC entry 5039 (class 0 OID 17638)
+-- Dependencies: 242
+-- Data for Name: Subtitles; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public."Subtitles" (subtitles_id, media_id) FROM stdin;
+\.
+
+
+--
+-- TOC entry 5042 (class 0 OID 17643)
+-- Dependencies: 245
+-- Data for Name: Users; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public."Users" (user_id, email, password, failed_login_attempts, activation_status, locked_until, referral_id, referral_code, has_discount, trial_available) FROM stdin;
+4	test@123.com	$2b$10$K1PC9dIC9S4lQ55ChPcYEOR25vTSCQrI6sCUWfrGZ9N8.3zzZ/YxO	0	not_activated	\N	4	\N	t	t
+5	tes2t@123.com	$2b$10$R7gGzRbkVzSuIg7R54WaXefwBCmyio.Yc1QD2QXb1JHe8OHGGiYw2	0	not_activated	\N	5	\N	t	t
+6	tes22t@123.com	$2b$10$lEcpJx66SiWrXvncIUHLze.wv/eBPjql09LHkz3OKV69sDREBhUtS	0	not_activated	\N	6	\N	t	t
+7	tes322t@123.com	$2b$10$qw/r/CcGihUPUqVgBnXd0u9mrFHec.vkjq052Go64s0GSanhnm8BC	0	not_activated	\N	7	\N	t	t
+\.
+
+
+--
+-- TOC entry 5045 (class 0 OID 17653)
+-- Dependencies: 248
+-- Data for Name: ViewingClassification; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public."ViewingClassification" (id, type) FROM stdin;
+\.
+
+
+--
+-- TOC entry 5047 (class 0 OID 17657)
+-- Dependencies: 250
+-- Data for Name: WatchHistory; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public."WatchHistory" (history_id, profile_id, media_id, resume_to, times_watched, time_stamp, viewing_status) FROM stdin;
+\.
+
+
+--
+-- TOC entry 5051 (class 0 OID 17664)
+-- Dependencies: 254
+-- Data for Name: WatchLists; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public."WatchLists" (list_id, profile_id, media_id, viewing_status) FROM stdin;
+\.
+
+
+--
+-- TOC entry 5135 (class 0 OID 0)
+-- Dependencies: 218
+-- Name: Genre_genre_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public."Genre_genre_id_seq"', 1, false);
+
+
+--
+-- TOC entry 5136 (class 0 OID 0)
+-- Dependencies: 223
+-- Name: Media_media_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public."Media_media_id_seq"', 1, false);
+
+
+--
+-- TOC entry 5137 (class 0 OID 0)
+-- Dependencies: 224
+-- Name: Media_season_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public."Media_season_id_seq"', 1, false);
+
+
+--
+-- TOC entry 5138 (class 0 OID 0)
+-- Dependencies: 228
+-- Name: Profiles_profile_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public."Profiles_profile_id_seq"', 1, false);
+
+
+--
+-- TOC entry 5139 (class 0 OID 0)
+-- Dependencies: 229
+-- Name: Profiles_user_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public."Profiles_user_id_seq"', 1, false);
+
+
+--
+-- TOC entry 5140 (class 0 OID 0)
+-- Dependencies: 231
+-- Name: Qualities_quality_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public."Qualities_quality_id_seq"', 1, false);
+
+
+--
+-- TOC entry 5141 (class 0 OID 0)
+-- Dependencies: 233
+-- Name: Seasons_season_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public."Seasons_season_id_seq"', 1, false);
+
+
+--
+-- TOC entry 5142 (class 0 OID 0)
+-- Dependencies: 234
+-- Name: Seasons_series_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public."Seasons_series_id_seq"', 1, false);
+
+
+--
+-- TOC entry 5143 (class 0 OID 0)
+-- Dependencies: 238
+-- Name: Series_series_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public."Series_series_id_seq"', 1, false);
+
+
+--
+-- TOC entry 5144 (class 0 OID 0)
+-- Dependencies: 240
+-- Name: Subscriptions_subscription_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public."Subscriptions_subscription_id_seq"', 1, false);
+
+
+--
+-- TOC entry 5145 (class 0 OID 0)
+-- Dependencies: 241
+-- Name: Subscriptions_user_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public."Subscriptions_user_id_seq"', 1, false);
+
+
+--
+-- TOC entry 5146 (class 0 OID 0)
+-- Dependencies: 243
+-- Name: Subtitles_media_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public."Subtitles_media_id_seq"', 1, false);
+
+
+--
+-- TOC entry 5147 (class 0 OID 0)
+-- Dependencies: 244
+-- Name: Subtitles_subtitles_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public."Subtitles_subtitles_id_seq"', 1, false);
+
+
+--
+-- TOC entry 5148 (class 0 OID 0)
+-- Dependencies: 246
+-- Name: Users_referral_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public."Users_referral_id_seq"', 7, true);
+
+
+--
+-- TOC entry 5149 (class 0 OID 0)
+-- Dependencies: 247
+-- Name: Users_user_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public."Users_user_id_seq"', 7, true);
+
+
+--
+-- TOC entry 5150 (class 0 OID 0)
+-- Dependencies: 249
+-- Name: Viewing Classification_viewing_classification_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public."Viewing Classification_viewing_classification_id_seq"', 1, false);
+
+
+--
+-- TOC entry 5151 (class 0 OID 0)
+-- Dependencies: 251
+-- Name: Watch History_history_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public."Watch History_history_id_seq"', 1, false);
+
+
+--
+-- TOC entry 5152 (class 0 OID 0)
+-- Dependencies: 252
+-- Name: Watch History_media_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public."Watch History_media_id_seq"', 1, false);
+
+
+--
+-- TOC entry 5153 (class 0 OID 0)
+-- Dependencies: 253
+-- Name: Watch History_profile_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public."Watch History_profile_id_seq"', 1, false);
+
+
+--
+-- TOC entry 5154 (class 0 OID 0)
+-- Dependencies: 255
+-- Name: WatchLists_list_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public."WatchLists_list_id_seq"', 1, false);
+
+
+--
+-- TOC entry 5155 (class 0 OID 0)
+-- Dependencies: 256
+-- Name: WatchLists_media_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public."WatchLists_media_id_seq"', 1, false);
+
+
+--
+-- TOC entry 5156 (class 0 OID 0)
+-- Dependencies: 257
+-- Name: WatchLists_profile_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public."WatchLists_profile_id_seq"', 1, false);
+
+
+--
+-- TOC entry 4807 (class 2606 OID 17720)
 -- Name: Genre Genre_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -1678,16 +1966,7 @@ ALTER TABLE ONLY public."Genre"
 
 
 --
--- TOC entry 4835 (class 2606 OID 16635)
--- Name: Preferences Preferences_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public."Preferences"
-    ADD CONSTRAINT "Preferences_pkey" PRIMARY KEY (preferences_id);
-
-
---
--- TOC entry 4823 (class 2606 OID 16570)
+-- TOC entry 4811 (class 2606 OID 17722)
 -- Name: Profiles Profiles_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -1696,7 +1975,16 @@ ALTER TABLE ONLY public."Profiles"
 
 
 --
--- TOC entry 4829 (class 2606 OID 16602)
+-- TOC entry 4813 (class 2606 OID 17724)
+-- Name: Qualities Qualities_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public."Qualities"
+    ADD CONSTRAINT "Qualities_pkey" PRIMARY KEY (quality_id);
+
+
+--
+-- TOC entry 4815 (class 2606 OID 17726)
 -- Name: Seasons Seasons_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -1705,7 +1993,7 @@ ALTER TABLE ONLY public."Seasons"
 
 
 --
--- TOC entry 4827 (class 2606 OID 16592)
+-- TOC entry 4817 (class 2606 OID 17728)
 -- Name: Series Series_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -1714,7 +2002,7 @@ ALTER TABLE ONLY public."Series"
 
 
 --
--- TOC entry 4825 (class 2606 OID 16582)
+-- TOC entry 4819 (class 2606 OID 17730)
 -- Name: Subscriptions Subscriptions_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -1723,7 +2011,7 @@ ALTER TABLE ONLY public."Subscriptions"
 
 
 --
--- TOC entry 4833 (class 2606 OID 16623)
+-- TOC entry 4821 (class 2606 OID 17732)
 -- Name: Subtitles Subtitles_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -1732,25 +2020,25 @@ ALTER TABLE ONLY public."Subtitles"
 
 
 --
--- TOC entry 4839 (class 2606 OID 16673)
--- Name: Viewing Classification Viewing Classification_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- TOC entry 4827 (class 2606 OID 17734)
+-- Name: ViewingClassification Viewing Classification_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
-ALTER TABLE ONLY public."Viewing Classification"
-    ADD CONSTRAINT "Viewing Classification_pkey" PRIMARY KEY (viewing_classification_id);
+ALTER TABLE ONLY public."ViewingClassification"
+    ADD CONSTRAINT "Viewing Classification_pkey" PRIMARY KEY (id);
 
 
 --
--- TOC entry 4841 (class 2606 OID 16685)
--- Name: Watch History Watch History_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- TOC entry 4829 (class 2606 OID 17736)
+-- Name: WatchHistory Watch History_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
-ALTER TABLE ONLY public."Watch History"
+ALTER TABLE ONLY public."WatchHistory"
     ADD CONSTRAINT "Watch History_pkey" PRIMARY KEY (history_id);
 
 
 --
--- TOC entry 4843 (class 2606 OID 16696)
+-- TOC entry 4831 (class 2606 OID 17738)
 -- Name: WatchLists WatchLists_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -1759,7 +2047,7 @@ ALTER TABLE ONLY public."WatchLists"
 
 
 --
--- TOC entry 4819 (class 2606 OID 16557)
+-- TOC entry 4823 (class 2606 OID 17740)
 -- Name: Users email; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -1768,7 +2056,7 @@ ALTER TABLE ONLY public."Users"
 
 
 --
--- TOC entry 4831 (class 2606 OID 16614)
+-- TOC entry 4809 (class 2606 OID 17742)
 -- Name: Media media; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -1777,7 +2065,7 @@ ALTER TABLE ONLY public."Media"
 
 
 --
--- TOC entry 4821 (class 2606 OID 16555)
+-- TOC entry 4825 (class 2606 OID 17744)
 -- Name: Users user; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -1786,7 +2074,15 @@ ALTER TABLE ONLY public."Users"
 
 
 --
--- TOC entry 4857 (class 2620 OID 16847)
+-- TOC entry 4857 (class 2620 OID 17872)
+-- Name: Subscriptions apply_referral_discount_trigger; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER apply_referral_discount_trigger AFTER UPDATE ON public."Subscriptions" FOR EACH ROW EXECUTE FUNCTION public.apply_referral_discount();
+
+
+--
+-- TOC entry 4859 (class 2620 OID 17745)
 -- Name: Users failed_login_trigger; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
@@ -1794,7 +2090,7 @@ CREATE TRIGGER failed_login_trigger BEFORE UPDATE ON public."Users" FOR EACH ROW
 
 
 --
--- TOC entry 4859 (class 2620 OID 16853)
+-- TOC entry 4856 (class 2620 OID 17746)
 -- Name: Profiles profile_age_validation_trigger; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
@@ -1802,7 +2098,7 @@ CREATE TRIGGER profile_age_validation_trigger BEFORE INSERT OR UPDATE ON public.
 
 
 --
--- TOC entry 4858 (class 2620 OID 16855)
+-- TOC entry 4860 (class 2620 OID 17747)
 -- Name: Users referral_discount_trigger; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
@@ -1810,7 +2106,7 @@ CREATE TRIGGER referral_discount_trigger AFTER INSERT ON public."Users" FOR EACH
 
 
 --
--- TOC entry 4860 (class 2620 OID 16849)
+-- TOC entry 4858 (class 2620 OID 17748)
 -- Name: Subscriptions trial_expiry_trigger; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
@@ -1818,15 +2114,15 @@ CREATE TRIGGER trial_expiry_trigger AFTER INSERT OR UPDATE ON public."Subscripti
 
 
 --
--- TOC entry 4861 (class 2620 OID 16851)
--- Name: Watch History viewing_history_trigger; Type: TRIGGER; Schema: public; Owner: postgres
+-- TOC entry 4861 (class 2620 OID 17749)
+-- Name: WatchHistory viewing_history_trigger; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
-CREATE TRIGGER viewing_history_trigger BEFORE INSERT ON public."Watch History" FOR EACH ROW EXECUTE FUNCTION public.update_viewing_history();
+CREATE TRIGGER viewing_history_trigger BEFORE INSERT ON public."WatchHistory" FOR EACH ROW EXECUTE FUNCTION public.update_viewing_history();
 
 
 --
--- TOC entry 4862 (class 2620 OID 16857)
+-- TOC entry 4862 (class 2620 OID 17750)
 -- Name: WatchLists watchlist_removal_trigger; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
@@ -1834,25 +2130,142 @@ CREATE TRIGGER watchlist_removal_trigger AFTER UPDATE ON public."WatchLists" FOR
 
 
 --
--- TOC entry 4849 (class 2606 OID 16722)
--- Name: Subtitles media; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- TOC entry 4833 (class 2606 OID 17751)
+-- Name: MediaGenres_Junction MediaGenres_Junction_genre_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
-ALTER TABLE ONLY public."Subtitles"
+ALTER TABLE ONLY public."MediaGenres_Junction"
+    ADD CONSTRAINT "MediaGenres_Junction_genre_id_fkey" FOREIGN KEY (genre_id) REFERENCES public."Genre"(genre_id);
+
+
+--
+-- TOC entry 4834 (class 2606 OID 17756)
+-- Name: MediaGenres_Junction MediaGenres_Junction_media_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public."MediaGenres_Junction"
+    ADD CONSTRAINT "MediaGenres_Junction_media_id_fkey" FOREIGN KEY (media_id) REFERENCES public."Media"(media_id);
+
+
+--
+-- TOC entry 4835 (class 2606 OID 17761)
+-- Name: MediaQualities_Junction MediaQualities_Junction_media_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public."MediaQualities_Junction"
+    ADD CONSTRAINT "MediaQualities_Junction_media_id_fkey" FOREIGN KEY (media_id) REFERENCES public."Media"(media_id);
+
+
+--
+-- TOC entry 4836 (class 2606 OID 17766)
+-- Name: MediaQualities_Junction MediaQualities_Junction_quality_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public."MediaQualities_Junction"
+    ADD CONSTRAINT "MediaQualities_Junction_quality_id_fkey" FOREIGN KEY (quality_id) REFERENCES public."Qualities"(quality_id);
+
+
+--
+-- TOC entry 4837 (class 2606 OID 17771)
+-- Name: MediaVClassification_Junction MediaVClassification_Junction_media_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public."MediaVClassification_Junction"
+    ADD CONSTRAINT "MediaVClassification_Junction_media_id_fkey" FOREIGN KEY (media_id) REFERENCES public."Media"(media_id);
+
+
+--
+-- TOC entry 4838 (class 2606 OID 17776)
+-- Name: MediaVClassification_Junction MediaVClassification_Junction_vc_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public."MediaVClassification_Junction"
+    ADD CONSTRAINT "MediaVClassification_Junction_vc_id_fkey" FOREIGN KEY (vc_id) REFERENCES public."ViewingClassification"(id);
+
+
+--
+-- TOC entry 4839 (class 2606 OID 17781)
+-- Name: ProfileGenres_Junction ProfileGenres_Junction_genre_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public."ProfileGenres_Junction"
+    ADD CONSTRAINT "ProfileGenres_Junction_genre_id_fkey" FOREIGN KEY (genre_id) REFERENCES public."Genre"(genre_id);
+
+
+--
+-- TOC entry 4840 (class 2606 OID 17786)
+-- Name: ProfileGenres_Junction ProfileGenres_Junction_profile_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public."ProfileGenres_Junction"
+    ADD CONSTRAINT "ProfileGenres_Junction_profile_id_fkey" FOREIGN KEY (profile_id) REFERENCES public."Profiles"(profile_id);
+
+
+--
+-- TOC entry 4841 (class 2606 OID 17791)
+-- Name: ProfileVClassification_Junction ProfileVClassification_Junction_profile_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public."ProfileVClassification_Junction"
+    ADD CONSTRAINT "ProfileVClassification_Junction_profile_id_fkey" FOREIGN KEY (profile_id) REFERENCES public."Profiles"(profile_id);
+
+
+--
+-- TOC entry 4842 (class 2606 OID 17796)
+-- Name: ProfileVClassification_Junction ProfileVClassification_Junction_vc_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public."ProfileVClassification_Junction"
+    ADD CONSTRAINT "ProfileVClassification_Junction_vc_id_fkey" FOREIGN KEY (vc_id) REFERENCES public."ViewingClassification"(id);
+
+
+--
+-- TOC entry 4845 (class 2606 OID 17801)
+-- Name: SeriesGenres_Junction SeriesGenres_Junction_genre_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public."SeriesGenres_Junction"
+    ADD CONSTRAINT "SeriesGenres_Junction_genre_id_fkey" FOREIGN KEY (genre_id) REFERENCES public."Genre"(genre_id);
+
+
+--
+-- TOC entry 4846 (class 2606 OID 17806)
+-- Name: SeriesGenres_Junction SeriesGenres_Junction_series_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public."SeriesGenres_Junction"
+    ADD CONSTRAINT "SeriesGenres_Junction_series_id_fkey" FOREIGN KEY (series_id) REFERENCES public."Series"(series_id);
+
+
+--
+-- TOC entry 4847 (class 2606 OID 17811)
+-- Name: SeriesVClassification_Junction SeriesVClassification_Junction_series_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public."SeriesVClassification_Junction"
+    ADD CONSTRAINT "SeriesVClassification_Junction_series_id_fkey" FOREIGN KEY (series_id) REFERENCES public."Series"(series_id);
+
+
+--
+-- TOC entry 4848 (class 2606 OID 17816)
+-- Name: SeriesVClassification_Junction SeriesVClassification_Junction_vc_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public."SeriesVClassification_Junction"
+    ADD CONSTRAINT "SeriesVClassification_Junction_vc_id_fkey" FOREIGN KEY (vc_id) REFERENCES public."ViewingClassification"(id);
+
+
+--
+-- TOC entry 4852 (class 2606 OID 17826)
+-- Name: WatchHistory media; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public."WatchHistory"
     ADD CONSTRAINT media FOREIGN KEY (media_id) REFERENCES public."Media"(media_id) NOT VALID;
 
 
 --
--- TOC entry 4853 (class 2606 OID 16747)
--- Name: Watch History media; Type: FK CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public."Watch History"
-    ADD CONSTRAINT media FOREIGN KEY (media_id) REFERENCES public."Media"(media_id) NOT VALID;
-
-
---
--- TOC entry 4855 (class 2606 OID 16757)
+-- TOC entry 4854 (class 2606 OID 17831)
 -- Name: WatchLists media; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -1861,52 +2274,34 @@ ALTER TABLE ONLY public."WatchLists"
 
 
 --
--- TOC entry 4851 (class 2606 OID 16732)
--- Name: Genre preferences; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- TOC entry 4850 (class 2606 OID 17903)
+-- Name: Subtitles media; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
-ALTER TABLE ONLY public."Genre"
-    ADD CONSTRAINT preferences FOREIGN KEY (preferences_id) REFERENCES public."Preferences"(preferences_id) NOT VALID;
-
-
---
--- TOC entry 4852 (class 2606 OID 16737)
--- Name: Viewing Classification preferences; Type: FK CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public."Viewing Classification"
-    ADD CONSTRAINT preferences FOREIGN KEY (preferences_id) REFERENCES public."Preferences"(preferences_id) NOT VALID;
+ALTER TABLE ONLY public."Subtitles"
+    ADD CONSTRAINT media FOREIGN KEY (media_id) REFERENCES public."Media"(media_id) ON DELETE CASCADE;
 
 
 --
--- TOC entry 4850 (class 2606 OID 16727)
--- Name: Preferences profile; Type: FK CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public."Preferences"
-    ADD CONSTRAINT profile FOREIGN KEY (profile_id) REFERENCES public."Profiles"(profile_id) NOT VALID;
-
-
---
--- TOC entry 4854 (class 2606 OID 16742)
--- Name: Watch History profile; Type: FK CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public."Watch History"
-    ADD CONSTRAINT profile FOREIGN KEY (profile_id) REFERENCES public."Profiles"(profile_id) NOT VALID;
-
-
---
--- TOC entry 4856 (class 2606 OID 16752)
+-- TOC entry 4855 (class 2606 OID 17913)
 -- Name: WatchLists profile; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public."WatchLists"
-    ADD CONSTRAINT profile FOREIGN KEY (profile_id) REFERENCES public."Profiles"(profile_id) NOT VALID;
+    ADD CONSTRAINT profile FOREIGN KEY (profile_id) REFERENCES public."Profiles"(profile_id) ON DELETE CASCADE;
 
 
 --
--- TOC entry 4844 (class 2606 OID 16697)
+-- TOC entry 4853 (class 2606 OID 17918)
+-- Name: WatchHistory profile; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public."WatchHistory"
+    ADD CONSTRAINT profile FOREIGN KEY (profile_id) REFERENCES public."Profiles"(profile_id) ON DELETE CASCADE;
+
+
+--
+-- TOC entry 4851 (class 2606 OID 17846)
 -- Name: Users referral; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -1915,34 +2310,25 @@ ALTER TABLE ONLY public."Users"
 
 
 --
--- TOC entry 4848 (class 2606 OID 16717)
+-- TOC entry 4832 (class 2606 OID 17893)
 -- Name: Media season; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public."Media"
-    ADD CONSTRAINT season FOREIGN KEY (season_id) REFERENCES public."Seasons"(season_id) NOT VALID;
+    ADD CONSTRAINT season FOREIGN KEY (season_id) REFERENCES public."Seasons"(season_id) ON DELETE CASCADE;
 
 
 --
--- TOC entry 4847 (class 2606 OID 16712)
--- Name: Seasons series; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- TOC entry 4844 (class 2606 OID 17898)
+-- Name: Seasons season; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public."Seasons"
-    ADD CONSTRAINT series FOREIGN KEY (series_id) REFERENCES public."Series"(series_id) NOT VALID;
+    ADD CONSTRAINT season FOREIGN KEY (series_id) REFERENCES public."Series"(series_id) ON DELETE CASCADE;
 
 
 --
--- TOC entry 4845 (class 2606 OID 16702)
--- Name: Profiles user; Type: FK CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public."Profiles"
-    ADD CONSTRAINT "user" FOREIGN KEY (user_id) REFERENCES public."Users"(user_id) NOT VALID;
-
-
---
--- TOC entry 4846 (class 2606 OID 16707)
+-- TOC entry 4849 (class 2606 OID 17866)
 -- Name: Subscriptions user; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -1951,19 +2337,554 @@ ALTER TABLE ONLY public."Subscriptions"
 
 
 --
--- TOC entry 5060 (class 0 OID 0)
--- Dependencies: 5059
--- Name: DATABASE netflix; Type: ACL; Schema: -; Owner: postgres
+-- TOC entry 4843 (class 2606 OID 17908)
+-- Name: Profiles user; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
-
--- Grants the users connection to the database, but they are not created in this script so this breaks for now. To be updated.
--- GRANT CONNECT ON DATABASE netflix TO juniors_group;
--- GRANT CONNECT ON DATABASE netflix TO mediors_group;
--- GRANT CONNECT ON DATABASE netflix TO seniors_group;
+ALTER TABLE ONLY public."Profiles"
+    ADD CONSTRAINT "user" FOREIGN KEY (user_id) REFERENCES public."Users"(user_id) ON DELETE CASCADE;
 
 
--- Completed on 2025-01-16 16:44:36
+--
+-- TOC entry 5060 (class 0 OID 0)
+-- Dependencies: 281
+-- Name: FUNCTION apply_referral_discount(); Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON FUNCTION public.apply_referral_discount() TO senior;
+
+
+--
+-- TOC entry 5061 (class 0 OID 0)
+-- Dependencies: 289
+-- Name: FUNCTION expire_trial_period(); Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON FUNCTION public.expire_trial_period() TO senior;
+
+
+--
+-- TOC entry 5062 (class 0 OID 0)
+-- Dependencies: 290
+-- Name: FUNCTION lock_user_account(); Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON FUNCTION public.lock_user_account() TO senior;
+
+
+--
+-- TOC entry 5063 (class 0 OID 0)
+-- Dependencies: 266
+-- Name: FUNCTION remove_from_watchlist(); Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON FUNCTION public.remove_from_watchlist() TO senior;
+
+
+--
+-- TOC entry 5064 (class 0 OID 0)
+-- Dependencies: 267
+-- Name: FUNCTION update_viewing_history(); Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON FUNCTION public.update_viewing_history() TO senior;
+
+
+--
+-- TOC entry 5065 (class 0 OID 0)
+-- Dependencies: 270
+-- Name: FUNCTION validate_profile_age(); Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON FUNCTION public.validate_profile_age() TO senior;
+
+
+--
+-- TOC entry 5066 (class 0 OID 0)
+-- Dependencies: 217
+-- Name: TABLE "Genre"; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON TABLE public."Genre" TO senior;
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public."Genre" TO api;
+
+
+--
+-- TOC entry 5068 (class 0 OID 0)
+-- Dependencies: 218
+-- Name: SEQUENCE "Genre_genre_id_seq"; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON SEQUENCE public."Genre_genre_id_seq" TO senior;
+GRANT SELECT,USAGE ON SEQUENCE public."Genre_genre_id_seq" TO junior;
+GRANT SELECT,USAGE ON SEQUENCE public."Genre_genre_id_seq" TO api;
+
+
+--
+-- TOC entry 5069 (class 0 OID 0)
+-- Dependencies: 219
+-- Name: TABLE "Media"; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON TABLE public."Media" TO senior;
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public."Media" TO medior;
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public."Media" TO api;
+
+
+--
+-- TOC entry 5070 (class 0 OID 0)
+-- Dependencies: 220
+-- Name: TABLE "MediaGenres_Junction"; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON TABLE public."MediaGenres_Junction" TO senior;
+
+
+--
+-- TOC entry 5071 (class 0 OID 0)
+-- Dependencies: 221
+-- Name: TABLE "MediaQualities_Junction"; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON TABLE public."MediaQualities_Junction" TO senior;
+
+
+--
+-- TOC entry 5072 (class 0 OID 0)
+-- Dependencies: 222
+-- Name: TABLE "MediaVClassification_Junction"; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON TABLE public."MediaVClassification_Junction" TO senior;
+
+
+--
+-- TOC entry 5074 (class 0 OID 0)
+-- Dependencies: 223
+-- Name: SEQUENCE "Media_media_id_seq"; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON SEQUENCE public."Media_media_id_seq" TO senior;
+GRANT SELECT,USAGE ON SEQUENCE public."Media_media_id_seq" TO junior;
+GRANT SELECT,USAGE ON SEQUENCE public."Media_media_id_seq" TO api;
+
+
+--
+-- TOC entry 5076 (class 0 OID 0)
+-- Dependencies: 224
+-- Name: SEQUENCE "Media_season_id_seq"; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON SEQUENCE public."Media_season_id_seq" TO senior;
+GRANT SELECT,USAGE ON SEQUENCE public."Media_season_id_seq" TO junior;
+GRANT SELECT,USAGE ON SEQUENCE public."Media_season_id_seq" TO api;
+
+
+--
+-- TOC entry 5077 (class 0 OID 0)
+-- Dependencies: 225
+-- Name: TABLE "ProfileGenres_Junction"; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON TABLE public."ProfileGenres_Junction" TO senior;
+
+
+--
+-- TOC entry 5078 (class 0 OID 0)
+-- Dependencies: 226
+-- Name: TABLE "ProfileVClassification_Junction"; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON TABLE public."ProfileVClassification_Junction" TO senior;
+
+
+--
+-- TOC entry 5079 (class 0 OID 0)
+-- Dependencies: 227
+-- Name: TABLE "Profiles"; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON TABLE public."Profiles" TO senior;
+GRANT SELECT ON TABLE public."Profiles" TO junior;
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public."Profiles" TO api;
+
+
+--
+-- TOC entry 5081 (class 0 OID 0)
+-- Dependencies: 228
+-- Name: SEQUENCE "Profiles_profile_id_seq"; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON SEQUENCE public."Profiles_profile_id_seq" TO senior;
+GRANT SELECT,USAGE ON SEQUENCE public."Profiles_profile_id_seq" TO junior;
+GRANT SELECT,USAGE ON SEQUENCE public."Profiles_profile_id_seq" TO api;
+
+
+--
+-- TOC entry 5083 (class 0 OID 0)
+-- Dependencies: 229
+-- Name: SEQUENCE "Profiles_user_id_seq"; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON SEQUENCE public."Profiles_user_id_seq" TO senior;
+GRANT SELECT,USAGE ON SEQUENCE public."Profiles_user_id_seq" TO junior;
+GRANT SELECT,USAGE ON SEQUENCE public."Profiles_user_id_seq" TO api;
+
+
+--
+-- TOC entry 5084 (class 0 OID 0)
+-- Dependencies: 230
+-- Name: TABLE "Qualities"; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON TABLE public."Qualities" TO senior;
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public."Qualities" TO api;
+
+
+--
+-- TOC entry 5086 (class 0 OID 0)
+-- Dependencies: 231
+-- Name: SEQUENCE "Qualities_quality_id_seq"; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON SEQUENCE public."Qualities_quality_id_seq" TO senior;
+GRANT SELECT,USAGE ON SEQUENCE public."Qualities_quality_id_seq" TO junior;
+GRANT SELECT,USAGE ON SEQUENCE public."Qualities_quality_id_seq" TO api;
+
+
+--
+-- TOC entry 5087 (class 0 OID 0)
+-- Dependencies: 232
+-- Name: TABLE "Seasons"; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON TABLE public."Seasons" TO senior;
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public."Seasons" TO api;
+
+
+--
+-- TOC entry 5089 (class 0 OID 0)
+-- Dependencies: 233
+-- Name: SEQUENCE "Seasons_season_id_seq"; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON SEQUENCE public."Seasons_season_id_seq" TO senior;
+GRANT SELECT,USAGE ON SEQUENCE public."Seasons_season_id_seq" TO junior;
+GRANT SELECT,USAGE ON SEQUENCE public."Seasons_season_id_seq" TO api;
+
+
+--
+-- TOC entry 5091 (class 0 OID 0)
+-- Dependencies: 234
+-- Name: SEQUENCE "Seasons_series_id_seq"; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON SEQUENCE public."Seasons_series_id_seq" TO senior;
+GRANT SELECT,USAGE ON SEQUENCE public."Seasons_series_id_seq" TO junior;
+GRANT SELECT,USAGE ON SEQUENCE public."Seasons_series_id_seq" TO api;
+
+
+--
+-- TOC entry 5092 (class 0 OID 0)
+-- Dependencies: 235
+-- Name: TABLE "Series"; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON TABLE public."Series" TO senior;
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public."Series" TO api;
+
+
+--
+-- TOC entry 5093 (class 0 OID 0)
+-- Dependencies: 236
+-- Name: TABLE "SeriesGenres_Junction"; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON TABLE public."SeriesGenres_Junction" TO senior;
+
+
+--
+-- TOC entry 5094 (class 0 OID 0)
+-- Dependencies: 237
+-- Name: TABLE "SeriesVClassification_Junction"; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON TABLE public."SeriesVClassification_Junction" TO senior;
+
+
+--
+-- TOC entry 5096 (class 0 OID 0)
+-- Dependencies: 238
+-- Name: SEQUENCE "Series_series_id_seq"; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON SEQUENCE public."Series_series_id_seq" TO senior;
+GRANT SELECT,USAGE ON SEQUENCE public."Series_series_id_seq" TO junior;
+GRANT SELECT,USAGE ON SEQUENCE public."Series_series_id_seq" TO api;
+
+
+--
+-- TOC entry 5097 (class 0 OID 0)
+-- Dependencies: 239
+-- Name: TABLE "Subscriptions"; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON TABLE public."Subscriptions" TO senior;
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public."Subscriptions" TO medior;
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public."Subscriptions" TO api;
+
+
+--
+-- TOC entry 5099 (class 0 OID 0)
+-- Dependencies: 240
+-- Name: SEQUENCE "Subscriptions_subscription_id_seq"; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON SEQUENCE public."Subscriptions_subscription_id_seq" TO senior;
+GRANT SELECT,USAGE ON SEQUENCE public."Subscriptions_subscription_id_seq" TO junior;
+GRANT SELECT,USAGE ON SEQUENCE public."Subscriptions_subscription_id_seq" TO api;
+
+
+--
+-- TOC entry 5101 (class 0 OID 0)
+-- Dependencies: 241
+-- Name: SEQUENCE "Subscriptions_user_id_seq"; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON SEQUENCE public."Subscriptions_user_id_seq" TO senior;
+GRANT SELECT,USAGE ON SEQUENCE public."Subscriptions_user_id_seq" TO junior;
+GRANT SELECT,USAGE ON SEQUENCE public."Subscriptions_user_id_seq" TO api;
+
+
+--
+-- TOC entry 5102 (class 0 OID 0)
+-- Dependencies: 242
+-- Name: TABLE "Subtitles"; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON TABLE public."Subtitles" TO senior;
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public."Subtitles" TO api;
+
+
+--
+-- TOC entry 5104 (class 0 OID 0)
+-- Dependencies: 243
+-- Name: SEQUENCE "Subtitles_media_id_seq"; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON SEQUENCE public."Subtitles_media_id_seq" TO senior;
+GRANT SELECT,USAGE ON SEQUENCE public."Subtitles_media_id_seq" TO junior;
+GRANT SELECT,USAGE ON SEQUENCE public."Subtitles_media_id_seq" TO api;
+
+
+--
+-- TOC entry 5106 (class 0 OID 0)
+-- Dependencies: 244
+-- Name: SEQUENCE "Subtitles_subtitles_id_seq"; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON SEQUENCE public."Subtitles_subtitles_id_seq" TO senior;
+GRANT SELECT,USAGE ON SEQUENCE public."Subtitles_subtitles_id_seq" TO junior;
+GRANT SELECT,USAGE ON SEQUENCE public."Subtitles_subtitles_id_seq" TO api;
+
+
+--
+-- TOC entry 5107 (class 0 OID 0)
+-- Dependencies: 245
+-- Name: TABLE "Users"; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON TABLE public."Users" TO senior;
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public."Users" TO medior;
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public."Users" TO api;
+
+
+--
+-- TOC entry 5109 (class 0 OID 0)
+-- Dependencies: 246
+-- Name: SEQUENCE "Users_referral_id_seq"; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON SEQUENCE public."Users_referral_id_seq" TO senior;
+GRANT SELECT,USAGE ON SEQUENCE public."Users_referral_id_seq" TO junior;
+GRANT SELECT,USAGE ON SEQUENCE public."Users_referral_id_seq" TO api;
+
+
+--
+-- TOC entry 5111 (class 0 OID 0)
+-- Dependencies: 247
+-- Name: SEQUENCE "Users_user_id_seq"; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON SEQUENCE public."Users_user_id_seq" TO senior;
+GRANT SELECT,USAGE ON SEQUENCE public."Users_user_id_seq" TO junior;
+GRANT SELECT,USAGE ON SEQUENCE public."Users_user_id_seq" TO api;
+
+
+--
+-- TOC entry 5112 (class 0 OID 0)
+-- Dependencies: 248
+-- Name: TABLE "ViewingClassification"; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON TABLE public."ViewingClassification" TO senior;
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public."ViewingClassification" TO api;
+
+
+--
+-- TOC entry 5114 (class 0 OID 0)
+-- Dependencies: 249
+-- Name: SEQUENCE "Viewing Classification_viewing_classification_id_seq"; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON SEQUENCE public."Viewing Classification_viewing_classification_id_seq" TO senior;
+GRANT SELECT,USAGE ON SEQUENCE public."Viewing Classification_viewing_classification_id_seq" TO junior;
+GRANT SELECT,USAGE ON SEQUENCE public."Viewing Classification_viewing_classification_id_seq" TO api;
+
+
+--
+-- TOC entry 5115 (class 0 OID 0)
+-- Dependencies: 250
+-- Name: TABLE "WatchHistory"; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON TABLE public."WatchHistory" TO senior;
+GRANT SELECT ON TABLE public."WatchHistory" TO junior;
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public."WatchHistory" TO api;
+
+
+--
+-- TOC entry 5117 (class 0 OID 0)
+-- Dependencies: 251
+-- Name: SEQUENCE "Watch History_history_id_seq"; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON SEQUENCE public."Watch History_history_id_seq" TO senior;
+GRANT SELECT,USAGE ON SEQUENCE public."Watch History_history_id_seq" TO junior;
+GRANT SELECT,USAGE ON SEQUENCE public."Watch History_history_id_seq" TO api;
+
+
+--
+-- TOC entry 5119 (class 0 OID 0)
+-- Dependencies: 252
+-- Name: SEQUENCE "Watch History_media_id_seq"; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON SEQUENCE public."Watch History_media_id_seq" TO senior;
+GRANT SELECT,USAGE ON SEQUENCE public."Watch History_media_id_seq" TO junior;
+GRANT SELECT,USAGE ON SEQUENCE public."Watch History_media_id_seq" TO api;
+
+
+--
+-- TOC entry 5121 (class 0 OID 0)
+-- Dependencies: 253
+-- Name: SEQUENCE "Watch History_profile_id_seq"; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON SEQUENCE public."Watch History_profile_id_seq" TO senior;
+GRANT SELECT,USAGE ON SEQUENCE public."Watch History_profile_id_seq" TO junior;
+GRANT SELECT,USAGE ON SEQUENCE public."Watch History_profile_id_seq" TO api;
+
+
+--
+-- TOC entry 5122 (class 0 OID 0)
+-- Dependencies: 254
+-- Name: TABLE "WatchLists"; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON TABLE public."WatchLists" TO senior;
+GRANT SELECT ON TABLE public."WatchLists" TO junior;
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public."WatchLists" TO api;
+
+
+--
+-- TOC entry 5124 (class 0 OID 0)
+-- Dependencies: 255
+-- Name: SEQUENCE "WatchLists_list_id_seq"; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON SEQUENCE public."WatchLists_list_id_seq" TO senior;
+GRANT SELECT,USAGE ON SEQUENCE public."WatchLists_list_id_seq" TO junior;
+GRANT SELECT,USAGE ON SEQUENCE public."WatchLists_list_id_seq" TO api;
+
+
+--
+-- TOC entry 5126 (class 0 OID 0)
+-- Dependencies: 256
+-- Name: SEQUENCE "WatchLists_media_id_seq"; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON SEQUENCE public."WatchLists_media_id_seq" TO senior;
+GRANT SELECT,USAGE ON SEQUENCE public."WatchLists_media_id_seq" TO junior;
+GRANT SELECT,USAGE ON SEQUENCE public."WatchLists_media_id_seq" TO api;
+
+
+--
+-- TOC entry 5128 (class 0 OID 0)
+-- Dependencies: 257
+-- Name: SEQUENCE "WatchLists_profile_id_seq"; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON SEQUENCE public."WatchLists_profile_id_seq" TO senior;
+GRANT SELECT,USAGE ON SEQUENCE public."WatchLists_profile_id_seq" TO junior;
+GRANT SELECT,USAGE ON SEQUENCE public."WatchLists_profile_id_seq" TO api;
+
+
+--
+-- TOC entry 5129 (class 0 OID 0)
+-- Dependencies: 258
+-- Name: TABLE media_details; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON TABLE public.media_details TO senior;
+
+
+--
+-- TOC entry 5130 (class 0 OID 0)
+-- Dependencies: 259
+-- Name: TABLE series_and_seasons; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON TABLE public.series_and_seasons TO senior;
+
+
+--
+-- TOC entry 5131 (class 0 OID 0)
+-- Dependencies: 260
+-- Name: TABLE subscription_referral_stats; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON TABLE public.subscription_referral_stats TO senior;
+
+
+--
+-- TOC entry 5132 (class 0 OID 0)
+-- Dependencies: 261
+-- Name: TABLE user_details; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON TABLE public.user_details TO senior;
+
+
+--
+-- TOC entry 5133 (class 0 OID 0)
+-- Dependencies: 262
+-- Name: TABLE watch_history_details; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON TABLE public.watch_history_details TO senior;
+
+
+--
+-- TOC entry 5134 (class 0 OID 0)
+-- Dependencies: 263
+-- Name: TABLE watch_list_details; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON TABLE public.watch_list_details TO senior;
+
+
+-- Completed on 2025-01-20 01:02:58
 
 --
 -- PostgreSQL database dump complete

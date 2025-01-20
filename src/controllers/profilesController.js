@@ -1,17 +1,18 @@
-const Profile = require("../models/Profile");
+const { Profile } = require('../models/Profile'); 
 
 const profileController = {
-    getAllProfiles: async (req, res) => {
-        const { userId } = req.params;
+	getAllProfiles: async (req, res) => {
+		const { userId } = req.params;
 
-        if (!userId) {
-            return res.status(400).json({
-                message: "Please provide a valid userId to retrieve profiles.",
-            });
-        }
+		if (!userId) {
+			return res.response(req, res, 400, {
+				message: "Please provide a valid userId to retrieve profiles.",
+			});
+		}
 
         try {
             const profiles = await Profile.findAll({ where: { user_id: userId } });
+
 
             if (!profiles || profiles.length === 0) {
                 return res.status(404).json({
