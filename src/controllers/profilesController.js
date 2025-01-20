@@ -1,4 +1,4 @@
-const db = require("../db");
+const { Profile } = require('../models'); 
 
 const profileController = {
 	getAllProfiles: async (req, res) => {
@@ -10,249 +10,165 @@ const profileController = {
 			});
 		}
 
-		try {
-			const query = `
-                SELECT * FROM "profile_details"
-                WHERE user_id = $1;
-                `;
+        try {
+            const profiles = await Profile.query(
+                `SELECT * FROM profile_details WHERE user_id = :userId`,
+                {
+                    replacements: { userId },
+                    type: sequelize.QueryTypes.SELECT
+                }
+            );
 
-			const result = await db.query(query, [userId]);
+            if (!profiles || profiles.length === 0) {
+                return res.status(404).json({
+                    message: "No profiles found for the specified user.",
+                });
+            }
 
-			if (result.rows.length === 0) {
-				return res.status(404).json({
-					message: "No profiles found for the specified user.",
-				});
-			}
+            return res.status(200).json(profiles);
+        } catch (error) {
+            console.error(error);
+            return res.status(500).json({
+                message: "Internal server error",
+                error: error.message,
+            });
+        }
+    },
 
-			return res.response(req, res, 400, result.rows);
-		} catch (error) {
-			console.error(error);
-			return res.response(req, res, 500, {
-				message: "Internal server error",
-				error: error.message,
-			});
-		}
-	},
+    createProfile: async (req, res) => {
+        const { userId, name, age, photoPath, language, dateOfBirth } = req.body;
 
-	createProfile: async (req, res) => {
-		const { userId, name, age, photoPath } = req.body;
+        if (!userId || !name) {
+            return res.status(400).json({
+                message: "Please provide both userId and name to create a profile.",
+            });
+        }
 
-		if (!userId || !name) {
-			return res.response(req, res, 400, {
-				message: "Please provide both userId and name to create a profile.",
-			});
-		}
+        try {
+            const result = await Profile.query(
+                `CALL CreateProfile(:userId, :name, :age, :photoPath, :language, :dateOfBirth)`,
+                {
+                    replacements: { userId, name, age, photoPath, language, dateOfBirth },
+                    type: sequelize.QueryTypes.RAW
+                }
+            );
 
-		try {
-			const query = `CALL "CreateProfile"($1, $2, $3, $4, $5);`;
+            return res.status(201).json({
+                message: "Profile created successfully.",
+                profile: result, 
+            });
+        } catch (error) {
+            console.error(error);
+            return res.status(500).json({
+                message: "Internal server error",
+                error: error.message,
+            });
+        }
+    },
 
-			const isChildProfile = age && age < 18;
-			const values = [
-				userId,
-				name,
-				age || null,
-				photoPath || null,
-				isChildProfile,
-			];
+    getProfileById: async (req, res) => {
+        const { profileId } = req.params;
 
-			await db.query(query, values);
+        if (!profileId) {
+            return res.status(400).json({
+                message: "Please provide a valid profileId to retrieve the profile.",
+            });
+        }
 
-			return res.response(req, res, 201, {
-				message: "Profile created successfully.",
-			});
-		} catch (error) {
-			console.error(error);
+        try {
+            const profile = await Profile.query(
+                `SELECT * FROM profile_details WHERE profile_id = :profileId`,
+                {
+                    replacements: { profileId },
+                    type: sequelize.QueryTypes.SELECT
+                }
+            );
 
-			if (error.message.includes("unique constraint violation")) {
-				return res.response(req, res, 400, {
-					message: "A profile with this userId already exists.",
-				});
-			}
+            if (!profile || profile.length === 0) {
+                return res.status(404).json({
+                    message: "Profile not found with the specified ID.",
+                });
+            }
 
-			return res.response(req, res, 500, {
-				message: "Internal server error",
-				error: error.message,
-			});
-		}
-	},
+            return res.status(200).json(profile[0]);
+        } catch (error) {
+            console.error(error);
+            return res.status(500).json({
+                message: "Internal server error",
+                error: error.message,
+            });
+        }
+    },
 
-	getProfileById: async (req, res) => {
-		const { profileId } = req.params;
+    updateProfile: async (req, res) => {
+        const { profileId } = req.params;
+        const { name, age, photoPath, language, dateOfBirth } = req.body;
 
-		if (!profileId) {
-			return res.response(req, res, 400, {
-				message: "Please provide a valid profileId.",
-			});
-		}
+        if (!profileId) {
+            return res.status(400).json({
+                message: "Please provide a valid profileId to update the profile.",
+            });
+        }
 
-		try {
-			const query = `
-            SELECT * FROM "profile_details" 
-            WHERE profile_id = $1 LIMIT 1;
-            `;
-			const values = [profileId];
+        try {
+            const [updatedRowsCount] = await Profile.query(
+                `UPDATE "Profiles" 
+                 SET name = :name, age = :age, photo_path = :photoPath, language = :language, date_of_birth = :dateOfBirth 
+                 WHERE profile_id = :profileId`,
+                {
+                    replacements: { name, age, photoPath, language, dateOfBirth, profileId },
+                    type: sequelize.QueryTypes.UPDATE
+                }
+            );
 
-			const result = await db.query(query, values);
+            if (updatedRowsCount === 0) {
+                return res.status(404).json({
+                    message: "Profile not found or no updates made.",
+                });
+            }
 
-			if (result.rows.length === 0) {
-				return res.response(req, res, 404, {
-					message: "Profile not found.",
-				});
-			}
+            return res.status(200).json({
+                message: "Profile updated successfully.",
+            });
+        } catch (error) {
+            console.error(error);
+            return res.status(500).json({
+                message: "Internal server error",
+                error: error.message,
+            });
+        }
+    },
 
-			return res.response(req, res, 200, {
-				message: "Profile retrieved successfully.",
-				profile: result.rows[0],
-			});
-		} catch (error) {
-			console.error(error);
-			return res.response(req, res, 500, {
-				message: "Internal server error",
-				error: error.message,
-			});
-		}
-	},
+    deleteProfile: async (req, res) => {
+        const { profileId } = req.params;
 
-	updateProfile: async (req, res) => {
-		const { profileId } = req.params;
-		const {
-			name,
-			age,
-			photoPath,
-			contentType,
-			minimumAge,
-			viewingClassification,
-		} = req.body;
+        if (!profileId) {
+            return res.status(400).json({
+                message: "Please provide a valid profileId to delete the profile.",
+            });
+        }
 
-		if (!profileId) {
-			return res.response(req, res, 400, {
-				message: "Please provide a valid profileId.",
-			});
-		}
+        try {
+            const deletedRowsCount = await Profile.destroy({ where: { profile_id: profileId } });
 
-		const updateFields = [];
-		const values = [];
+            if (deletedRowsCount === 0) {
+                return res.status(404).json({
+                    message: "Profile not found.",
+                });
+            }
 
-		if (name) {
-			updateFields.push("name = $" + (values.length + 1));
-			values.push(name);
-		}
-		if (age !== undefined) {
-			updateFields.push("age = $" + (values.length + 1));
-			values.push(age);
-		}
-		if (photoPath) {
-			updateFields.push("photo_path = $" + (values.length + 1));
-			values.push(photoPath);
-		}
+            return res.status(200).json({
+                message: "Profile deleted successfully.",
+            });
+        } catch (error) {
+            console.error(error);
+            return res.status(500).json({
+                message: "Internal server error",
+                error: error.message,
+            });
+        }
+    },
 
-		if (updateFields.length === 0) {
-			return res.response(req, res, 400, {
-				message: "Please provide at least one field to update.",
-			});
-		}
-
-		try {
-			const profileQuery = `
-                UPDATE "Profiles"
-                SET ${updateFields.join(", ")}
-                WHERE profile_id = $${values.length + 1}
-                RETURNING *;
-            `;
-			values.push(profileId);
-
-			const profileResult = await db.query(profileQuery, values);
-
-			if (profileResult.rows.length === 0) {
-				return res.status(404).json({
-					message: "Profile not found.",
-				});
-			}
-
-			if (contentType || minimumAge || viewingClassification) {
-				const preferenceFields = [];
-				const preferenceValues = [];
-
-				if (contentType) {
-					preferenceFields.push(
-						"content_type = $" + (preferenceValues.length + 1)
-					);
-					preferenceValues.push(contentType);
-				}
-				if (minimumAge !== undefined) {
-					preferenceFields.push(
-						"minimum_age = $" + (preferenceValues.length + 1)
-					);
-					preferenceValues.push(minimumAge);
-				}
-				if (viewingClassification) {
-					preferenceFields.push(
-						"viewing_classification = $" + (preferenceValues.length + 1)
-					);
-					preferenceValues.push(viewingClassification);
-				}
-
-				if (preferenceFields.length > 0) {
-					const preferenceQuery = `
-                        UPDATE "Preferences"
-                        SET ${preferenceFields.join(", ")}
-                        WHERE profile_id = $${preferenceValues.length + 1}
-                        RETURNING *;
-                    `;
-					preferenceValues.push(profileId);
-
-					await db.query(preferenceQuery, preferenceValues);
-				}
-			}
-
-			return res.response(req, res, 200, {
-				message: "Profile updated successfully.",
-				profile: profileResult.rows[0],
-			});
-		} catch (error) {
-			console.error(error);
-			return res.response(req, res, 500, {
-				message: "Internal server error",
-				error: error.message,
-			});
-		}
-	},
-
-	deleteProfile: async (req, res) => {
-		const { profileId } = req.params;
-
-		if (!profileId) {
-			return res.response(req, res, 400, {
-				message: "Please provide a valid profileId to delete.",
-			});
-		}
-
-		try {
-			const deleteProfileQuery = `
-                DELETE FROM "Profiles"
-                WHERE profile_id = $1
-                RETURNING *;
-            `;
-			const result = await db.query(deleteProfileQuery, [profileId]);
-
-			if (result.rows.length === 0) {
-				return res.response(req, res, 404, {
-					message: "Profile not found.",
-				});
-			}
-
-			return res.response(req, res, 200, {
-				message: "Profile deleted successfully.",
-				profile: result.rows[0],
-			});
-		} catch (error) {
-			console.error(error);
-			return res.response(req, res, 500, {
-				message: "Internal server error",
-				error: error.message,
-			});
-		}
-	},
 };
 
 module.exports = profileController;
