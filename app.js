@@ -46,8 +46,8 @@ const authRoutes = require("./src/routes/authRoutes");
 app.use("/auth", authRoutes);
 
 //routes for account, profiles, subscription
-//const userRoutes = require("./src/routes/userRoutes");
-//app.use("/user", userRoutes);
+const userRoutes = require("./src/routes/userRoutes");
+app.use("/user", userRoutes);
 
 //routes for movies
 const movieRoutes = require("./src/routes/movieRoutes");
@@ -63,7 +63,7 @@ app.use("/watchlist", watchListRoutes);
 
 //routes for watchHistory
 const watchHistoryRoutes = require("./src/routes/watchHistoryRoutes");
-app.use("./watchHistory", watchHistoryRoutes);
+app.use("/watchHistory", watchHistoryRoutes);
 
 app.use((error, req, res) => {
 	const status = error.statusCode || 500;

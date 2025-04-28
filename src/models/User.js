@@ -1,8 +1,41 @@
 const { DataTypes } = require("sequelize");
 const sequelize = require("../config/sequelize");
+const BaseModel = require("./BaseModel");
+const UserStatus = require("./enums/UserStatus");
 
-const User = sequelize.define(
-	"User",
+class User extends BaseModel {
+    /**
+     * Custom method to check if user account is active
+     * @returns {boolean} True if user is active
+     */
+    isActive() {
+        return this.activation_status === UserStatus.ACTIVE;
+    }
+
+    /**
+     * Custom method to check if user account is locked
+     * @returns {boolean} True if user is locked
+     */
+    isLocked() {
+        return this.activation_status === UserStatus.SUSPENDED && 
+            this.locked_until && 
+            new Date() < this.locked_until;
+    }
+
+    /**
+     * Custom XML format method
+     * @returns {Object} User data in a format suitable for XML conversion
+     */
+    toXML() {
+        const data = this.get();
+        // Exclude sensitive fields
+        delete data.password;
+        
+        return { user: data };
+    }
+}
+
+User.initialize(
 	{
 		user_id: {
 			type: DataTypes.INTEGER,
@@ -25,7 +58,13 @@ const User = sequelize.define(
 		},
 		activation_status: {
 			type: DataTypes.STRING,
-			defaultValue: "not_activated",
+			defaultValue: UserStatus.NOT_ACTIVATED,
+            validate: {
+                isIn: {
+                    args: [UserStatus.getAllValues()],
+                    msg: "Invalid user status"
+                }
+            }
 		},
 		locked_until: {
 			type: DataTypes.DATE,
@@ -48,7 +87,8 @@ const User = sequelize.define(
 	},
 	{
 		timestamps: false,
-	}
+	},
+    sequelize
 );
 
 module.exports = User;
