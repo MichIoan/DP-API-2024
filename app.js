@@ -63,7 +63,7 @@ app.use("/watchlist", watchListRoutes);
 
 //routes for watchHistory
 const watchHistoryRoutes = require("./src/routes/watchHistoryRoutes");
-app.use("./watchHistory", watchHistoryRoutes);
+app.use("/watchHistory", watchHistoryRoutes);
 
 app.use((error, req, res) => {
 	const status = error.statusCode || 500;
