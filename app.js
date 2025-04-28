@@ -65,6 +65,18 @@ app.use("/watchlist", watchListRoutes);
 const watchHistoryRoutes = require("./src/routes/watchHistoryRoutes");
 app.use("/watchHistory", watchHistoryRoutes);
 
+//routes for profiles
+const profileRoutes = require("./src/routes/profileRoutes");
+app.use("/profile", profileRoutes);
+
+//routes for subscriptions
+const subscriptionRoutes = require("./src/routes/subscriptionRoutes");
+app.use("/subscription", subscriptionRoutes);
+
+//routes for subtitles
+const subtitlesRoutes = require("./src/routes/subtitlesRoutes");
+app.use("/subtitle", subtitlesRoutes);
+
 app.use((error, req, res) => {
 	const status = error.statusCode || 500;
 	const message = error.message;
