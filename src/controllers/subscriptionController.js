@@ -1,7 +1,19 @@
-const { Subscription, User } = require("../models");
+const BaseController = require('./BaseController');
+const SubscriptionService = require('../services/subscriptionService');
+const { Subscription } = require('../models/Subscription');
+const User = require('../models/User');
 
-const subscriptionController = {
-    getAllSubscriptions: async (req, res) => {
+/**
+ * Controller for handling subscription-related operations
+ * Uses SubscriptionService for business logic
+ */
+class SubscriptionController extends BaseController {
+    /**
+     * Get all subscriptions
+     * @param {Object} req - Express request object
+     * @param {Object} res - Express response object
+     */
+    async getAllSubscriptions(req, res) {
         try {
             const subscriptions = await Subscription.findAll({
                 include: [
@@ -13,72 +25,124 @@ const subscriptionController = {
             });
     
             if (!subscriptions.length) {
-                return res.response(req, res, 404, {message: "No subscriptions found."});
+                return this.handleError(req, res, 404, "No subscriptions found.");
             }
     
-            return res.response(req, res, 200, subscriptions);
+            return this.handleSuccess(req, res, 200, { subscriptions });
         } catch (error) {
             console.error(error);
-            return res.response(req, res, 500, {error: error.message});
+            return this.handleError(req, res, 500, "Error retrieving subscriptions", error.message);
         }
-    },
+    }
 
-    updateSubscription: async (req, res) => {
-        const { subscriptionId } = req.params;
-        const { new_plan } = req.body;
-    
-        if (!new_plan) {
-            return res.response(req, res, 400, {
-                message: "Please provide a new plan to update the subscription.",
-            });
-        }
-    
+    /**
+     * Get subscription for a user
+     * @param {Object} req - Express request object
+     * @param {Object} res - Express response object
+     */
+    async getUserSubscription(req, res) {
         try {
-            const subscription = await Subscription.findByPk(subscriptionId);
-    
+            const userId = req.userId; // From auth middleware
+            
+            const subscription = await SubscriptionService.getUserSubscription(userId);
+            
             if (!subscription) {
-                return res.response(req, res, 404, { message: "Subscription not found." });
+                return this.handleError(req, res, 404, "No subscription found for this user.");
             }
-    
-            await sequelize.query(
-                `CALL updateSubscription(:user_id, :new_plan)`,
-                {
-                    replacements: {
-                        user_id: subscription.user_id,
-                        new_plan: new_plan,
-                    },
-                    type: sequelize.QueryTypes.RAW,
-                }
-            );
-    
-            return res.response(req, res, 200, {
-                message: "Subscription updated successfully.",
-                updated_subscription: subscription,
-            });
+            
+            return this.handleSuccess(req, res, 200, { subscription });
         } catch (error) {
             console.error(error);
-            return res.response(req, res, 500, {error: error.message});
+            return this.handleError(req, res, 500, "Error retrieving user subscription", error.message);
         }
-    },    
+    }
     
-    deleteSubscription: async (req, res) => {
-        const { subscriptionId } = req.params;
-
+    /**
+     * Create a new subscription
+     * @param {Object} req - Express request object
+     * @param {Object} res - Express response object
+     */
+    async createSubscription(req, res) {
         try {
-            const subscription = await Subscription.findByPk(subscriptionId);
-
-            if (!subscription) {
-                return res.response(req, res, 404, {message: "Subscription not found."});
+            const userId = req.userId; // From auth middleware
+            const { subscriptionType } = req.body;
+            
+            if (!subscriptionType) {
+                return this.handleError(req, res, 400, "Subscription type is required");
             }
-
-            await subscription.destroy();
-
-            return res.response(req, res, 200, { message: "Subscription deleted successfully." });
+            
+            const result = await SubscriptionService.updateSubscription(userId, subscriptionType);
+            
+            return this.handleSuccess(req, res, 201, result);
         } catch (error) {
             console.error(error);
-            return res.response(req, res, 500, {error: error.message});
+            return this.handleError(req, res, 500, "Error creating subscription", error.message);
         }
-    },
-};
+    }
 
+    /**
+     * Update a subscription
+     * @param {Object} req - Express request object
+     * @param {Object} res - Express response object
+     */
+    async updateSubscription(req, res) {
+        try {
+            const userId = req.userId; // From auth middleware
+            const { subscriptionType } = req.body;
+            
+            if (!subscriptionType) {
+                return this.handleError(req, res, 400, "Subscription type is required");
+            }
+            
+            const result = await SubscriptionService.updateSubscription(userId, subscriptionType);
+            
+            return this.handleSuccess(req, res, 200, result);
+        } catch (error) {
+            console.error(error);
+            return this.handleError(req, res, 500, "Error updating subscription", error.message);
+        }
+    }
+    
+    /**
+     * Cancel a subscription
+     * @param {Object} req - Express request object
+     * @param {Object} res - Express response object
+     */
+    async cancelSubscription(req, res) {
+        try {
+            const userId = req.userId; // From auth middleware
+            
+            const result = await SubscriptionService.cancelSubscription(userId);
+            
+            return this.handleSuccess(req, res, 200, result);
+        } catch (error) {
+            console.error(error);
+            return this.handleError(req, res, 500, "Error canceling subscription", error.message);
+        }
+    }
+    
+    /**
+     * Get recommended content for a user profile
+     * @param {Object} req - Express request object
+     * @param {Object} res - Express response object
+     */
+    async getRecommendedContent(req, res) {
+        try {
+            const { profileId } = req.params;
+            const limit = req.query.limit ? parseInt(req.query.limit) : 10;
+            
+            const recommendations = await SubscriptionService.getRecommendedContent(profileId, limit);
+            
+            return this.handleSuccess(req, res, 200, { recommendations });
+        } catch (error) {
+            console.error(error);
+            return this.handleError(req, res, 500, "Error getting recommendations", error.message);
+        }
+    }
+}
+
+// Create a singleton instance
+const subscriptionController = new SubscriptionController();
+
+// Export the instance
 module.exports = subscriptionController;
