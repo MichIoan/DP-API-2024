@@ -1,5 +1,5 @@
 const BaseController = require('./BaseController');
-const SubscriptionService = require('../services/subscriptionService');
+const { SubscriptionService } = require('../services');
 const { Subscription } = require('../models/Subscription');
 const User = require('../models/User');
 
@@ -15,19 +15,7 @@ class SubscriptionController extends BaseController {
      */
     async getAllSubscriptions(req, res) {
         try {
-            const subscriptions = await Subscription.findAll({
-                include: [
-                    {
-                        model: User,
-                        attributes: ["email", "has_discount", "referral_id"], 
-                    },
-                ],
-            });
-    
-            if (!subscriptions.length) {
-                return this.handleError(req, res, 404, "No subscriptions found.");
-            }
-    
+            const subscriptions = await SubscriptionService.getAllSubscriptions();
             return this.handleSuccess(req, res, 200, { subscriptions });
         } catch (error) {
             console.error(error);
@@ -36,7 +24,7 @@ class SubscriptionController extends BaseController {
     }
 
     /**
-     * Get subscription for a user
+     * Get user subscription
      * @param {Object} req - Express request object
      * @param {Object} res - Express response object
      */
@@ -47,18 +35,18 @@ class SubscriptionController extends BaseController {
             const subscription = await SubscriptionService.getUserSubscription(userId);
             
             if (!subscription) {
-                return this.handleError(req, res, 404, "No subscription found for this user.");
+                return this.handleError(req, res, 404, "No subscription found for this user");
             }
             
             return this.handleSuccess(req, res, 200, { subscription });
         } catch (error) {
             console.error(error);
-            return this.handleError(req, res, 500, "Error retrieving user subscription", error.message);
+            return this.handleError(req, res, 500, "Error retrieving subscription", error.message);
         }
     }
-    
+
     /**
-     * Create a new subscription
+     * Create subscription
      * @param {Object} req - Express request object
      * @param {Object} res - Express response object
      */
@@ -67,13 +55,17 @@ class SubscriptionController extends BaseController {
             const userId = req.userId; // From auth middleware
             const { subscriptionType } = req.body;
             
-            if (!subscriptionType) {
+            const validation = this.validateRequiredFields(req.body, ['subscriptionType']);
+            if (!validation.isValid) {
                 return this.handleError(req, res, 400, "Subscription type is required");
             }
             
             const result = await SubscriptionService.updateSubscription(userId, subscriptionType);
             
-            return this.handleSuccess(req, res, 201, result);
+            return this.handleSuccess(req, res, 201, {
+                message: "Subscription created successfully",
+                subscription: result
+            });
         } catch (error) {
             console.error(error);
             return this.handleError(req, res, 500, "Error creating subscription", error.message);
@@ -81,7 +73,7 @@ class SubscriptionController extends BaseController {
     }
 
     /**
-     * Update a subscription
+     * Update subscription
      * @param {Object} req - Express request object
      * @param {Object} res - Express response object
      */
@@ -90,21 +82,25 @@ class SubscriptionController extends BaseController {
             const userId = req.userId; // From auth middleware
             const { subscriptionType } = req.body;
             
-            if (!subscriptionType) {
+            const validation = this.validateRequiredFields(req.body, ['subscriptionType']);
+            if (!validation.isValid) {
                 return this.handleError(req, res, 400, "Subscription type is required");
             }
             
             const result = await SubscriptionService.updateSubscription(userId, subscriptionType);
             
-            return this.handleSuccess(req, res, 200, result);
+            return this.handleSuccess(req, res, 200, {
+                message: "Subscription updated successfully",
+                subscription: result
+            });
         } catch (error) {
             console.error(error);
             return this.handleError(req, res, 500, "Error updating subscription", error.message);
         }
     }
-    
+
     /**
-     * Cancel a subscription
+     * Cancel subscription
      * @param {Object} req - Express request object
      * @param {Object} res - Express response object
      */
@@ -114,29 +110,38 @@ class SubscriptionController extends BaseController {
             
             const result = await SubscriptionService.cancelSubscription(userId);
             
-            return this.handleSuccess(req, res, 200, result);
+            if (!result) {
+                return this.handleError(req, res, 404, "No active subscription found");
+            }
+            
+            return this.handleSuccess(req, res, 200, {
+                message: "Subscription canceled successfully"
+            });
         } catch (error) {
             console.error(error);
             return this.handleError(req, res, 500, "Error canceling subscription", error.message);
         }
     }
-    
+
     /**
-     * Get recommended content for a user profile
+     * Get recommended content based on subscription
      * @param {Object} req - Express request object
      * @param {Object} res - Express response object
      */
     async getRecommendedContent(req, res) {
         try {
             const { profileId } = req.params;
-            const limit = req.query.limit ? parseInt(req.query.limit) : 10;
             
-            const recommendations = await SubscriptionService.getRecommendedContent(profileId, limit);
+            if (!profileId) {
+                return this.handleError(req, res, 400, "Profile ID is required");
+            }
+            
+            const recommendations = await SubscriptionService.getRecommendedContent(profileId);
             
             return this.handleSuccess(req, res, 200, { recommendations });
         } catch (error) {
             console.error(error);
-            return this.handleError(req, res, 500, "Error getting recommendations", error.message);
+            return this.handleError(req, res, 500, "Error retrieving recommendations", error.message);
         }
     }
 }
