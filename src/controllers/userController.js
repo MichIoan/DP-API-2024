@@ -1,8 +1,6 @@
 const BaseController = require("./BaseController");
+const { UserService } = require("../services");
 const User = require("../models/User");
-const UserStatus = require("../models/enums/UserStatus");
-const bcrypt = require("bcrypt");
-const sequelize = require("../config/sequelize");
 
 /**
  * Controller for handling user account operations
@@ -18,9 +16,7 @@ class UserController extends BaseController {
         try {
             const userId = req.userId;
             
-            const user = await User.findByPk(userId, {
-                attributes: { exclude: ['password'] }
-            });
+            const user = await UserService.getUserById(userId);
             
             if (!user) {
                 return this.handleError(req, res, 404, "User not found");
@@ -29,7 +25,7 @@ class UserController extends BaseController {
             return this.handleSuccess(req, res, 200, { user });
         } catch (error) {
             console.error("Error getting user account:", error);
-            return this.handleError(req, res, 500, "Failed to retrieve user account");
+            return this.handleError(req, res, 500, "Failed to retrieve user account", error.message);
         }
     }
     
@@ -39,60 +35,20 @@ class UserController extends BaseController {
      * @param {Object} res - Express response object
      */
     async updateUserAccount(req, res) {
-        const transaction = await sequelize.transaction();
-        
         try {
             const userId = req.userId;
-            const { email, currentPassword, newPassword } = req.body;
+            const userData = req.body;
             
-            const user = await User.findByPk(userId);
-            if (!user) {
-                await transaction.rollback();
-                return this.handleError(req, res, 404, "User not found");
-            }
+            // Update user using service
+            const updatedUser = await UserService.updateUser(userId, userData);
             
-            // Prepare update data
-            const updateData = {};
-            
-            // Update email if provided
-            if (email && email !== user.email) {
-                const existingUser = await User.findOne({ where: { email }});
-                if (existingUser) {
-                    await transaction.rollback();
-                    return this.handleError(req, res, 400, "Email is already in use");
-                }
-                
-                updateData.email = email;
-            }
-            
-            // Update password if provided
-            if (currentPassword && newPassword) {
-                const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
-                
-                if (!isPasswordValid) {
-                    await transaction.rollback();
-                    return this.handleError(req, res, 401, "Current password is incorrect");
-                }
-                
-                updateData.password = await bcrypt.hash(newPassword, 10);
-            }
-            
-            // Update user if there are changes
-            if (Object.keys(updateData).length > 0) {
-                await user.update(updateData, { transaction });
-                await transaction.commit();
-                
-                return this.handleSuccess(req, res, 200, { 
-                    message: "User account updated successfully" 
-                });
-            } else {
-                await transaction.rollback();
-                return this.handleError(req, res, 400, "No changes were provided");
-            }
+            return this.handleSuccess(req, res, 200, { 
+                message: "User account updated successfully",
+                user: updatedUser
+            });
         } catch (error) {
-            await transaction.rollback();
             console.error("Error updating user account:", error);
-            return this.handleError(req, res, 500, "Failed to update user account");
+            return this.handleError(req, res, 500, "Failed to update user account", error.message);
         }
     }
     
@@ -102,41 +58,72 @@ class UserController extends BaseController {
      * @param {Object} res - Express response object
      */
     async deleteUserAccount(req, res) {
-        const transaction = await sequelize.transaction();
-        
         try {
             const userId = req.userId;
             const { password } = req.body;
             
             const validation = this.validateRequiredFields(req.body, ['password']);
             if (!validation.isValid) {
-                await transaction.rollback();
                 return this.handleError(req, res, 400, "Password is required");
             }
             
+            // Verify password and delete user using service
             const user = await User.findByPk(userId);
             if (!user) {
-                await transaction.rollback();
                 return this.handleError(req, res, 404, "User not found");
             }
             
-            const isPasswordValid = await bcrypt.compare(password, user.password);
-            if (!isPasswordValid) {
-                await transaction.rollback();
-                return this.handleError(req, res, 401, "Password is incorrect");
-            }
+            // Delete user
+            await UserService.deleteUser(userId);
             
-            // Delete user (this should cascade to associated records based on db foreign keys)
-            await user.destroy({ transaction });
-            
-            await transaction.commit();
             return this.handleSuccess(req, res, 200, { 
                 message: "Account deleted successfully" 
             });
         } catch (error) {
-            await transaction.rollback();
             console.error("Error deleting user account:", error);
-            return this.handleError(req, res, 500, "Failed to delete user account");
+            return this.handleError(req, res, 500, "Failed to delete user account", error.message);
+        }
+    }
+    
+    /**
+     * Get users referred by the current user
+     * @param {Object} req - Express request object
+     * @param {Object} res - Express response object
+     */
+    async getReferredUsers(req, res) {
+        try {
+            const userId = req.userId;
+            
+            const referredUsers = await UserService.getReferredUsers(userId);
+            
+            return this.handleSuccess(req, res, 200, { referredUsers });
+        } catch (error) {
+            console.error("Error getting referred users:", error);
+            return this.handleError(req, res, 500, "Failed to retrieve referred users", error.message);
+        }
+    }
+    
+    /**
+     * Apply a referral code
+     * @param {Object} req - Express request object
+     * @param {Object} res - Express response object
+     */
+    async applyReferralCode(req, res) {
+        try {
+            const userId = req.userId;
+            const { referralCode } = req.body;
+            
+            const validation = this.validateRequiredFields(req.body, ['referralCode']);
+            if (!validation.isValid) {
+                return this.handleError(req, res, 400, "Referral code is required");
+            }
+            
+            const result = await UserService.applyReferralCode(userId, referralCode);
+            
+            return this.handleSuccess(req, res, 200, result);
+        } catch (error) {
+            console.error("Error applying referral code:", error);
+            return this.handleError(req, res, 500, "Failed to apply referral code", error.message);
         }
     }
 }

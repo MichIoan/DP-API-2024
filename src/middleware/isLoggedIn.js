@@ -1,71 +1,68 @@
-const jwt = require("jsonwebtoken");
+const { UserService } = require("../services");
 const User = require("../models/User");
 
+/**
+ * Authentication middleware to verify JWT token
+ * Sets req.userId for use in controllers
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @param {Function} next - Express next function
+ */
 async function isLoggedIn(req, res, next) {
-	const decoded = getToken(req, res);
-	if (res.headersSent) return; //cehks if headers have been sent already and stops the function
-
-	const email = decoded.email;
-
-	console.log(email);
-	console.log(decoded);
-
-	try {
-		const user = await User.findOne({
-			where: {
-				email: email,
-			},
-		});
-
-		if (user.status === "locked") {
-			res.response(req, res, 401, {
-				message: "Locked account, try again later.",
-			});
-			return;
-		}
-
-		if (user.status === "not_activated") {
-			res.response(req, res, 401, {
-				message: "Account not activated",
-			});
-			return;
-		}
-
-		next();
-	} catch (err) {
-		console.log(err);
-		res.response(req, res, 500, { error: "Internal server error" });
-		return;
-	}
-}
-
-async function getToken(req, res) {
-	const header = req.headers.authorization;
-	let token;
-
-	if (!header) {
-		res.response(req, res, 400, { error: "No token provided" });
-	}
-
-	const bearer = header.split(" ");
-	if (bearer.length == 2 && bearer[0] === "Bearer") {
-		token = bearer[1]; // Return the token
-	}
-
-	let decoded;
-	try {
-		decoded = jwt.verify(token, process.env.JWT_KEY);
-	} catch (error) {
-		if (error instanceof jwt.TokenExpiredError) {
-			res.response(req, res, 403, { error: "Token expired" });
-			return;
-		} else {
-			res.response(req, res, 400, { error: "Invalid token" });
-			return;
-		}
-	}
-
-	return decoded;
+    try {
+        // Get token from authorization header
+        const authHeader = req.headers.authorization;
+        
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.response(req, res, 401, { 
+                error: "Authentication required. Please provide a valid token." 
+            });
+        }
+        
+        const token = authHeader.split(' ')[1];
+        
+        // Verify token
+        const decoded = await UserService.verifyToken(token);
+        
+        // Set userId in request for use in controllers
+        req.userId = decoded.id;
+        
+        // Find user
+        const user = await User.findByPk(req.userId);
+        
+        if (!user) {
+            return res.response(req, res, 401, { 
+                error: "User not found" 
+            });
+        }
+        
+        if (user.status === "DELETED" || user.status === "INACTIVE") {
+            return res.response(req, res, 401, { 
+                error: "Account is inactive or deleted" 
+            });
+        }
+        
+        // User is authenticated, proceed to next middleware
+        next();
+    } catch (error) {
+        console.error("Authentication error:", error);
+        
+        if (error.name === 'TokenExpiredError') {
+            return res.response(req, res, 401, { 
+                error: "Token expired. Please log in again." 
+            });
+        }
+        
+        if (error.name === 'JsonWebTokenError') {
+            return res.response(req, res, 401, { 
+                error: "Invalid token. Please log in again." 
+            });
+        }
+        
+        return res.response(req, res, 500, { 
+            error: "Internal server error during authentication" 
+        });
+    }
 }
 
 module.exports = isLoggedIn;
