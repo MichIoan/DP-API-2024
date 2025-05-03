@@ -14,105 +14,108 @@ class SubscriptionService {
      * @param {string} subscriptionType - Type of subscription (SD, HD, UHD)
      * @returns {Promise<Object>} - Result of the operation
      */
-    static async updateSubscription(userId, subscriptionType) {
+    async updateSubscription(userId, subscriptionType) {
         // Validate subscription type
         if (!SubscriptionType.isValid(subscriptionType)) {
             throw new Error('Invalid subscription type');
         }
         
-        // Get price based on subscription type
-        const price = SubscriptionType.getPrice(subscriptionType);
+        const transaction = await sequelize.transaction();
         
         try {
             // Call the stored procedure
-            await DbUtils.callProcedure('UpdateUserSubscription', [
-                userId,
-                subscriptionType,
-                price
-            ]);
+            const result = await DbUtils.callStoredProcedure(
+                'UpdateUserSubscription',
+                [userId, subscriptionType],
+                transaction
+            );
             
-            return {
-                success: true,
-                message: 'Subscription updated successfully',
-                type: subscriptionType,
-                price: price
-            };
+            await transaction.commit();
+            return result[0]; // Return the first row which contains the updated subscription
         } catch (error) {
-            console.error('Error updating subscription:', error);
+            await transaction.rollback();
             throw error;
         }
     }
     
     /**
-     * Get subscription details for a user
+     * Get a user's subscription
      * @param {number} userId - User ID
-     * @returns {Promise<Object>} - Subscription details
+     * @returns {Promise<Object>} - User subscription
      */
-    static async getUserSubscription(userId) {
-        try {
-            // Query the subscription_details view
-            const subscriptions = await DbUtils.queryView('subscription_details', { user_id: userId });
-            
-            if (!subscriptions || subscriptions.length === 0) {
-                return null;
-            }
-            
-            return subscriptions[0];
-        } catch (error) {
-            console.error('Error getting user subscription:', error);
-            throw error;
-        }
+    async getUserSubscription(userId) {
+        return Subscription.findOne({
+            where: { user_id: userId }
+        });
+    }
+    
+    /**
+     * Get all subscriptions (admin only)
+     * @returns {Promise<Array>} - All subscriptions
+     */
+    async getAllSubscriptions() {
+        // Query the subscription_details view
+        const query = `
+            SELECT * FROM "subscription_details"
+            ORDER BY start_date DESC;
+        `;
+        
+        return sequelize.query(query, {
+            type: sequelize.QueryTypes.SELECT
+        });
     }
     
     /**
      * Cancel a user's subscription
      * @param {number} userId - User ID
-     * @returns {Promise<Object>} - Result of the operation
+     * @returns {Promise<boolean>} - Success status
      */
-    static async cancelSubscription(userId) {
-        return await DbUtils.withTransaction(async (transaction) => {
-            // Find active subscription
+    async cancelSubscription(userId) {
+        const transaction = await sequelize.transaction();
+        
+        try {
             const subscription = await Subscription.findOne({
-                where: {
-                    user_id: userId,
-                    status: SubscriptionStatus.ACTIVE
-                },
+                where: { user_id: userId },
                 transaction
             });
             
             if (!subscription) {
-                throw new Error('No active subscription found');
+                await transaction.rollback();
+                return false;
             }
             
-            // Update subscription status
+            // Update status to cancelled
             await subscription.update({
-                status: SubscriptionStatus.CANCELED,
+                status: SubscriptionStatus.CANCELLED,
                 end_date: new Date()
             }, { transaction });
             
-            return {
-                success: true,
-                message: 'Subscription canceled successfully'
-            };
-        });
-    }
-    
-    /**
-     * Get recommended content for a user profile
-     * @param {number} profileId - Profile ID
-     * @param {number} limit - Maximum number of recommendations
-     * @returns {Promise<Array>} - Recommended content
-     */
-    static async getRecommendedContent(profileId, limit = 10) {
-        try {
-            // Call the GetRecommendedContent function
-            const recommendations = await DbUtils.callFunction('GetRecommendedContent', [profileId, limit]);
-            return recommendations;
+            await transaction.commit();
+            return true;
         } catch (error) {
-            console.error('Error getting recommended content:', error);
+            await transaction.rollback();
             throw error;
         }
     }
+    
+    /**
+     * Get recommended content based on subscription type
+     * @param {number} profileId - Profile ID
+     * @returns {Promise<Array>} - Recommended content
+     */
+    async getRecommendedContent(profileId) {
+        // Call the stored procedure
+        const result = await DbUtils.callStoredProcedure(
+            'GetRecommendedContent',
+            [profileId, 10] // Limit to 10 recommendations
+        );
+        
+        return result;
+    }
 }
 
-module.exports = SubscriptionService;
+// Create a singleton instance
+const subscriptionService = new SubscriptionService();
+
+// Export the instance
+module.exports = subscriptionService;

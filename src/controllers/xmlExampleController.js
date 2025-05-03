@@ -1,15 +1,16 @@
+const BaseController = require('./BaseController');
+
 /**
  * Example controller demonstrating XML response capabilities
- * Shows how to use the XML response features
+ * Extends BaseController to inherit common functionality
  */
-
-const xmlExampleController = {
+class XmlExampleController extends BaseController {
     /**
      * Get example data in XML format
      * @param {Object} req - Express request object
      * @param {Object} res - Express response object
      */
-    getXmlExample: async (req, res) => {
+    async getXmlExample(req, res) {
         try {
             // Sample data
             const exampleData = {
@@ -31,39 +32,52 @@ const xmlExampleController = {
                     res.json(exampleData);
                 },
                 'application/xml': () => {
-                    res.respondXml('netflix', exampleData);
+                    // XML response will be handled by response middleware
+                    res.response(req, res, 200, exampleData);
                 },
                 'default': () => {
+                    // Default to JSON
                     res.json(exampleData);
                 }
             });
         } catch (error) {
-            console.error(error);
-            res.status(500).json({ error: error.message });
+            console.error("Error in XML example:", error);
+            return this.handleError(req, res, 500, "Internal server error", error.message);
         }
-    },
-    
+    }
+
     /**
      * Alternative method using the response middleware
      * @param {Object} req - Express request object
      * @param {Object} res - Express response object
      */
-    getXmlAlt: async (req, res) => {
+    async getXmlAlt(req, res) {
         try {
+            // Sample data
             const exampleData = {
-                profiles: [
-                    { id: 1, name: "Adult", age: 30 },
-                    { id: 2, name: "Child", age: 10 }
-                ]
+                success: true,
+                timestamp: new Date().toISOString(),
+                content: {
+                    title: "XML Response Example",
+                    items: [
+                        { name: "Item 1", value: 100 },
+                        { name: "Item 2", value: 200 }
+                    ]
+                }
             };
             
-            // Using the response middleware
-            return res.response(req, res, 200, exampleData);
+            // Use the handleSuccess method from BaseController
+            // This will automatically handle XML conversion if needed
+            return this.handleSuccess(req, res, 200, exampleData);
         } catch (error) {
-            console.error(error);
-            return res.response(req, res, 500, { error: error.message });
+            console.error("Error in XML alternative example:", error);
+            return this.handleError(req, res, 500, "Internal server error", error.message);
         }
     }
-};
+}
 
+// Create a singleton instance
+const xmlExampleController = new XmlExampleController();
+
+// Export the instance
 module.exports = xmlExampleController;
