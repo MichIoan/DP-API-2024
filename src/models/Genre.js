@@ -58,8 +58,8 @@ Genre.initialize(
         }
     },
     {
-        timestamps: false,
         tableName: "genres",
+        timestamps: false,
     },
     sequelize
 );

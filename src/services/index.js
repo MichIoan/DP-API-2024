@@ -3,16 +3,20 @@
  * Export all services from a single entry point
  */
 
-const UserService = require('./userService');
-const ProfileService = require('./profileService');
-const SubscriptionService = require('./subscriptionService');
-const MediaService = require('./mediaService');
-const SeriesService = require('./seriesService');
+const userService = require('./userService');
+const profileService = require('./profileService');
+const subscriptionService = require('./subscriptionService');
+const mediaService = require('./mediaService');
+const seriesService = require('./seriesService');
+const watchHistoryService = require('./watchHistoryService');
+const watchListService = require('./watchListService');
 
 module.exports = {
-    UserService,
-    ProfileService,
-    SubscriptionService,
-    MediaService,
-    SeriesService,
+    userService,
+    profileService,
+    subscriptionService,
+    mediaService,
+    seriesService,
+    watchHistoryService,
+    watchListService,
 };

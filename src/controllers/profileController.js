@@ -1,11 +1,10 @@
 const BaseController = require('./BaseController');
-const { ProfileService } = require('../services');
+const { profileService } = require('../services');
 const { Profile } = require('../models/Profile');
-const User = require('../models/User');
 
 /**
  * Controller for handling profile-related operations
- * Uses ProfileService for business logic
+ * Uses profileService for business logic
  */
 class ProfileController extends BaseController {
     /**
@@ -17,10 +16,13 @@ class ProfileController extends BaseController {
         try {
             const userId = req.userId; // From auth middleware
             
-            const profiles = await ProfileService.getUserProfiles(userId);
+            const profiles = await profileService.getUserProfiles(userId);
             
             if (!profiles.length) {
-                return this.handleError(req, res, 404, "No profiles found for this user.");
+                return this.handleSuccess(req, res, 200, { 
+                    message: "No profiles found for this user.",
+                    profiles: []
+                });
             }
             
             return this.handleSuccess(req, res, 200, { profiles });
@@ -38,6 +40,11 @@ class ProfileController extends BaseController {
     async getProfileById(req, res) {
         try {
             const { profileId } = req.params;
+            const userId = req.userId; // From auth middleware
+            
+            if (!profileId) {
+                return this.handleError(req, res, 400, "Profile ID is required");
+            }
             
             const profile = await Profile.findByPk(profileId);
             
@@ -45,14 +52,17 @@ class ProfileController extends BaseController {
                 return this.handleError(req, res, 404, "Profile not found");
             }
             
-            // Check if profile belongs to the authenticated user
-            if (profile.user_id !== req.userId) {
+            // Check if the profile belongs to the authenticated user
+            if (profile.user_id !== userId) {
                 return this.handleError(req, res, 403, "You don't have permission to access this profile");
             }
             
             return this.handleSuccess(req, res, 200, { profile });
         } catch (error) {
             console.error(error);
+            if (error.name === 'SequelizeDatabaseError' && error.message.includes('invalid input syntax')) {
+                return this.handleError(req, res, 400, "Invalid profile ID format");
+            }
             return this.handleError(req, res, 500, "Error retrieving profile", error.message);
         }
     }
@@ -67,18 +77,31 @@ class ProfileController extends BaseController {
             const userId = req.userId; // From auth middleware
             const profileData = req.body;
             
-            // Validate required fields
-            const { isValid, missingFields } = this.validateRequiredFields(profileData, ['name']);
+            // Check if required fields are present
+            const requiredFields = ['name', 'age'];
+            const missingFields = requiredFields.filter(field => !profileData[field]);
             
-            if (!isValid) {
+            if (missingFields.length > 0) {
                 return this.handleError(req, res, 400, `Missing required fields: ${missingFields.join(', ')}`);
             }
             
-            const profile = await ProfileService.createProfile(userId, profileData);
+            // Check if user has reached maximum profile limit (e.g., 5 profiles)
+            const existingProfiles = await profileService.getUserProfiles(userId);
+            if (existingProfiles.length >= 5) {
+                return this.handleError(req, res, 403, "Maximum profile limit reached (5 profiles)");
+            }
+            
+            const profile = await profileService.createProfile(userId, profileData);
             
             return this.handleSuccess(req, res, 201, { profile });
         } catch (error) {
             console.error(error);
+            if (error.name === 'SequelizeUniqueConstraintError') {
+                return this.handleError(req, res, 409, "A profile with this name already exists for this user");
+            }
+            if (error.name === 'SequelizeValidationError') {
+                return this.handleError(req, res, 422, "Invalid profile data provided", error.message);
+            }
             return this.handleError(req, res, 500, "Error creating profile", error.message);
         }
     }
@@ -91,25 +114,35 @@ class ProfileController extends BaseController {
     async updateProfile(req, res) {
         try {
             const { profileId } = req.params;
+            const userId = req.userId; // From auth middleware
             const profileData = req.body;
             
-            // Find profile to check ownership
+            if (!profileId) {
+                return this.handleError(req, res, 400, "Profile ID is required");
+            }
+            
+            // Check if the profile exists and belongs to the user
             const profile = await Profile.findByPk(profileId);
             
             if (!profile) {
                 return this.handleError(req, res, 404, "Profile not found");
             }
             
-            // Check if profile belongs to the authenticated user
-            if (profile.user_id !== req.userId) {
+            if (profile.user_id !== userId) {
                 return this.handleError(req, res, 403, "You don't have permission to update this profile");
             }
             
-            const updatedProfile = await ProfileService.updateProfile(profileId, profileData);
+            const updatedProfile = await profileService.updateProfile(profileId, profileData);
             
             return this.handleSuccess(req, res, 200, { profile: updatedProfile });
         } catch (error) {
             console.error(error);
+            if (error.name === 'SequelizeUniqueConstraintError') {
+                return this.handleError(req, res, 409, "A profile with this name already exists for this user");
+            }
+            if (error.name === 'SequelizeValidationError') {
+                return this.handleError(req, res, 422, "Invalid profile data provided", error.message);
+            }
             return this.handleError(req, res, 500, "Error updating profile", error.message);
         }
     }
@@ -122,24 +155,31 @@ class ProfileController extends BaseController {
     async deleteProfile(req, res) {
         try {
             const { profileId } = req.params;
+            const userId = req.userId; // From auth middleware
             
-            // Find profile to check ownership
+            if (!profileId) {
+                return this.handleError(req, res, 400, "Profile ID is required");
+            }
+            
+            // Check if the profile exists and belongs to the user
             const profile = await Profile.findByPk(profileId);
             
             if (!profile) {
                 return this.handleError(req, res, 404, "Profile not found");
             }
             
-            // Check if profile belongs to the authenticated user
-            if (profile.user_id !== req.userId) {
+            if (profile.user_id !== userId) {
                 return this.handleError(req, res, 403, "You don't have permission to delete this profile");
             }
             
-            const result = await ProfileService.deleteProfile(profileId);
+            const result = await profileService.deleteProfile(profileId);
             
-            return this.handleSuccess(req, res, 200, { message: "Profile deleted successfully" });
+            return this.handleSuccess(req, res, 204, { message: "Profile deleted successfully" });
         } catch (error) {
             console.error(error);
+            if (error.message && error.message.includes('foreign key constraint')) {
+                return this.handleError(req, res, 409, "Cannot delete profile as it has associated data");
+            }
             return this.handleError(req, res, 500, "Error deleting profile", error.message);
         }
     }
@@ -152,26 +192,33 @@ class ProfileController extends BaseController {
     async getAgeAppropriateContent(req, res) {
         try {
             const { profileId } = req.params;
+            const userId = req.userId; // From auth middleware
             const limit = req.query.limit ? parseInt(req.query.limit) : 20;
             
-            // Find profile to check ownership
+            if (!profileId) {
+                return this.handleError(req, res, 400, "Profile ID is required");
+            }
+            
+            // Check if the profile exists and belongs to the user
             const profile = await Profile.findByPk(profileId);
             
             if (!profile) {
                 return this.handleError(req, res, 404, "Profile not found");
             }
             
-            // Check if profile belongs to the authenticated user
-            if (profile.user_id !== req.userId) {
+            if (profile.user_id !== userId) {
                 return this.handleError(req, res, 403, "You don't have permission to access this profile's content");
             }
             
-            const content = await ProfileService.getAgeAppropriateContent(profileId, limit);
+            const content = await profileService.getAgeAppropriateContent(profileId, limit);
             
             return this.handleSuccess(req, res, 200, { content });
         } catch (error) {
             console.error(error);
-            return this.handleError(req, res, 500, "Error getting age-appropriate content", error.message);
+            if (error.name === 'SequelizeDatabaseError') {
+                return this.handleError(req, res, 400, "Invalid request parameters", error.message);
+            }
+            return this.handleError(req, res, 500, "Error retrieving content", error.message);
         }
     }
 }

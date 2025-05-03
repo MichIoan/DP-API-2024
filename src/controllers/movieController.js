@@ -162,6 +162,8 @@ class MovieController extends BaseController {
     }
 }
 
+// Create a singleton instance
 const movieController = new MovieController();
 
+// Export the instance
 module.exports = movieController;

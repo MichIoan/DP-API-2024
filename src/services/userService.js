@@ -86,8 +86,8 @@ class UserService {
         // Generate JWT token
         const token = jwt.sign(
             { id: user.user_id },
-            process.env.JWT_SECRET || 'your-secret-key',
-            { expiresIn: '24h' }
+            process.env.JWT_SECRET,
+            { expiresIn: process.env.JWT_EXPIRATION || '24h' }
         );
         
         // Remove password from response

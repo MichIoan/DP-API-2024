@@ -1,5 +1,5 @@
 const BaseController = require('./BaseController');
-const WatchHistory = require("../models/WatchHistory");
+const { watchHistoryService } = require('../services');
 
 /**
  * Controller for handling watch history operations
@@ -20,58 +20,13 @@ class WatchHistoryController extends BaseController {
         }
 
         try {
-            const query = `
-                SELECT * FROM "watch_history_details"
-                WHERE profile_id = :profileId;
-            `;
+            const limit = req.query.limit ? parseInt(req.query.limit) : 20;
+            const history = await watchHistoryService.getHistory(profileId, limit);
             
-            const result = await WatchHistory.sequelize.query(query, {
-                replacements: { profileId },
-                type: WatchHistory.sequelize.QueryTypes.SELECT,
-            });
-
-            if (result.length === 0) {
-                return this.handleError(req, res, 404, "No watch history found for the given profileId.");
-            }
-
-            return this.handleSuccess(req, res, 200, { history: result });
+            return this.handleSuccess(req, res, 200, { history });
         } catch (error) {
             console.error(error);
-            return this.handleError(req, res, 500, "Internal server error", error.message);
-        }
-    }
-
-    /**
-     * Update watch history item
-     * @param {Object} req - Express request object
-     * @param {Object} res - Express response object
-     */
-    async updateHistory(req, res) {
-        const { historyId } = req.params;
-        const { watchedDuration, watchedPercentage, completed } = req.body;
-
-        try {
-            const historyItem = await WatchHistory.findByPk(historyId);
-
-            if (!historyItem) {
-                return this.handleError(req, res, 404, "Watch history item not found.");
-            }
-
-            // Update the history item with the provided data
-            const updateData = {};
-            if (watchedDuration !== undefined) updateData.watched_duration = watchedDuration;
-            if (watchedPercentage !== undefined) updateData.watched_percentage = watchedPercentage;
-            if (completed !== undefined) updateData.completed = completed;
-            
-            await historyItem.update(updateData);
-
-            return this.handleSuccess(req, res, 200, {
-                message: "Watch history updated successfully.",
-                historyEntry: historyItem
-            });
-        } catch (error) {
-            console.error(error);
-            return this.handleError(req, res, 500, "Internal server error", error.message);
+            return this.handleError(req, res, 500, "Error retrieving watch history", error.message);
         }
     }
 
@@ -81,77 +36,161 @@ class WatchHistoryController extends BaseController {
      * @param {Object} res - Express response object
      */
     async markAsWatched(req, res) {
-        const { profileId, mediaId, watchedDuration, watchedPercentage } = req.body;
+        const { profileId, mediaId, progress } = req.body;
 
         const validation = this.validateRequiredFields(req.body, ['profileId', 'mediaId']);
         if (!validation.isValid) {
-            return this.handleError(req, res, 400, "Profile ID and Media ID are required.");
+            return this.handleError(req, res, 400, "Please provide profileId and mediaId.");
         }
 
         try {
-            // Check if entry already exists
-            let historyEntry = await WatchHistory.findOne({
-                where: {
-                    profile_id: profileId,
-                    media_id: mediaId
-                }
-            });
-
-            if (historyEntry) {
-                // Update existing entry
-                const updateData = {
-                    watched_date: new Date()
-                };
-                
-                if (watchedDuration !== undefined) updateData.watched_duration = watchedDuration;
-                if (watchedPercentage !== undefined) updateData.watched_percentage = watchedPercentage;
-                
-                await historyEntry.update(updateData);
-            } else {
-                // Create new entry
-                historyEntry = await WatchHistory.create({
-                    profile_id: profileId,
-                    media_id: mediaId,
-                    watched_date: new Date(),
-                    watched_duration: watchedDuration || 0,
-                    watched_percentage: watchedPercentage || 0,
-                    completed: false
-                });
+            // Verify the profile belongs to the authenticated user
+            const userId = req.userId;
+            const isAuthorized = await this.verifyProfileOwnership(userId, profileId);
+            
+            if (!isAuthorized) {
+                return this.handleError(req, res, 403, "You don't have permission to modify this profile's watch history");
             }
-
-            return this.handleSuccess(req, res, 201, {
-                message: "Media marked as watched.",
-                historyEntry
+            
+            const watchProgress = progress || 100;
+            const history = await watchHistoryService.markAsWatched(profileId, mediaId, watchProgress);
+            
+            return this.handleSuccess(req, res, 200, {
+                message: "Media marked as watched",
+                history
             });
         } catch (error) {
             console.error(error);
-            return this.handleError(req, res, 500, "Internal server error", error.message);
+            return this.handleError(req, res, 500, "Error marking media as watched", error.message);
         }
     }
 
     /**
-     * Delete watch history item
+     * Update watch history record
+     * @param {Object} req - Express request object
+     * @param {Object} res - Express response object
+     */
+    async updateHistory(req, res) {
+        const { historyId } = req.params;
+        const updateData = req.body;
+
+        if (!historyId) {
+            return this.handleError(req, res, 400, "Please provide a historyId to update.");
+        }
+
+        try {
+            // Verify the history record belongs to the authenticated user
+            const userId = req.userId;
+            const isAuthorized = await this.verifyHistoryOwnership(userId, historyId);
+            
+            if (!isAuthorized) {
+                return this.handleError(req, res, 403, "You don't have permission to update this watch history");
+            }
+            
+            const updatedHistory = await watchHistoryService.updateHistory(historyId, updateData);
+            
+            if (!updatedHistory) {
+                return this.handleError(req, res, 404, "Watch history record not found");
+            }
+            
+            return this.handleSuccess(req, res, 200, {
+                message: "Watch history updated",
+                history: updatedHistory
+            });
+        } catch (error) {
+            console.error(error);
+            return this.handleError(req, res, 500, "Error updating watch history", error.message);
+        }
+    }
+
+    /**
+     * Delete watch history record
      * @param {Object} req - Express request object
      * @param {Object} res - Express response object
      */
     async deleteHistory(req, res) {
         const { historyId } = req.params;
 
+        if (!historyId) {
+            return this.handleError(req, res, 400, "Please provide a historyId to delete.");
+        }
+
         try {
-            const historyItem = await WatchHistory.findByPk(historyId);
-
-            if (!historyItem) {
-                return this.handleError(req, res, 404, "Watch history item not found.");
+            // Verify the history record belongs to the authenticated user
+            const userId = req.userId;
+            const isAuthorized = await this.verifyHistoryOwnership(userId, historyId);
+            
+            if (!isAuthorized) {
+                return this.handleError(req, res, 403, "You don't have permission to delete this watch history");
             }
-
-            await historyItem.destroy();
-
+            
+            const result = await watchHistoryService.deleteHistory(historyId);
+            
+            if (!result) {
+                return this.handleError(req, res, 404, "Watch history record not found");
+            }
+            
             return this.handleSuccess(req, res, 200, {
-                message: "Watch history item deleted successfully."
+                message: "Watch history deleted successfully"
             });
         } catch (error) {
             console.error(error);
-            return this.handleError(req, res, 500, "Internal server error", error.message);
+            return this.handleError(req, res, 500, "Error deleting watch history", error.message);
+        }
+    }
+    
+    /**
+     * Verify that a profile belongs to the authenticated user
+     * @param {number} userId - User ID
+     * @param {number} profileId - Profile ID
+     * @returns {Promise<boolean>} - Whether the profile belongs to the user
+     * @private
+     */
+    async verifyProfileOwnership(userId, profileId) {
+        try {
+            // This would typically use profileService, but for simplicity we'll use a direct query
+            const { Profile } = require('../models/Profile');
+            const profile = await Profile.findOne({
+                where: {
+                    id: profileId,
+                    user_id: userId
+                }
+            });
+            
+            return !!profile;
+        } catch (error) {
+            console.error('Error verifying profile ownership:', error);
+            return false;
+        }
+    }
+    
+    /**
+     * Verify that a watch history record belongs to the authenticated user
+     * @param {number} userId - User ID
+     * @param {number} historyId - Watch history ID
+     * @returns {Promise<boolean>} - Whether the history belongs to the user
+     * @private
+     */
+    async verifyHistoryOwnership(userId, historyId) {
+        try {
+            // This would typically use a join query, but for simplicity we'll use a raw query
+            const { WatchHistory } = require('../models/WatchHistory');
+            const query = `
+                SELECT wh.id 
+                FROM "watch_histories" wh
+                JOIN "profiles" p ON wh.profile_id = p.id
+                WHERE wh.id = :historyId AND p.user_id = :userId
+            `;
+            
+            const result = await WatchHistory.sequelize.query(query, {
+                replacements: { historyId, userId },
+                type: WatchHistory.sequelize.QueryTypes.SELECT
+            });
+            
+            return result.length > 0;
+        } catch (error) {
+            console.error('Error verifying history ownership:', error);
+            return false;
         }
     }
 }

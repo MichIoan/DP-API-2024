@@ -49,8 +49,8 @@ MediaGenres.initialize(
         }
     },
     {
-        timestamps: false,
         tableName: "media_genres",
+        timestamps: false,
         indexes: [
             {
                 unique: true,

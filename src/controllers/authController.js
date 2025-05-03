@@ -1,5 +1,5 @@
 const BaseController = require('./BaseController');
-const { UserService } = require('../services');
+const { userService } = require('../services');
 
 /**
  * Controller for handling authentication operations
@@ -21,7 +21,7 @@ class AuthController extends BaseController {
             }
 
             if (!this.isValidEmail(email)) {
-                return this.handleError(req, res, 400, "Invalid email format.");
+                return this.handleError(req, res, 422, "Invalid email format.");
             }
 
             const userData = {
@@ -32,7 +32,7 @@ class AuthController extends BaseController {
                 last_name: req.body.last_name || null
             };
 
-            await UserService.registerUser(userData);
+            await userService.registerUser(userData);
 
             return this.handleSuccess(req, res, 201, {
                 message: "User was created successfully."
@@ -41,7 +41,11 @@ class AuthController extends BaseController {
             console.error("Error during registration:", error);
             
             if (error.message === 'Email already in use') {
-                return this.handleError(req, res, 400, "User with this email already exists.");
+                return this.handleError(req, res, 409, "User with this email already exists.");
+            }
+            
+            if (error.name === 'SequelizeValidationError') {
+                return this.handleError(req, res, 422, "Invalid user data provided.", error.message);
             }
             
             return this.handleError(req, res, 500, "Internal server error", error.message);
@@ -63,11 +67,11 @@ class AuthController extends BaseController {
             }
 
             if (!this.isValidEmail(email)) {
-                return this.handleError(req, res, 400, "Invalid email format.");
+                return this.handleError(req, res, 422, "Invalid email format.");
             }
 
             try {
-                const result = await UserService.loginUser(email, password);
+                const result = await userService.loginUser(email, password);
                 
                 return this.handleSuccess(req, res, 200, {
                     message: "Login successful",
@@ -81,6 +85,8 @@ class AuthController extends BaseController {
                 } else if (error.message === 'Account is not active') {
                     return this.handleError(req, res, 403, error.message);
                 } else if (error.message && error.message.includes('locked')) {
+                    return this.handleError(req, res, 423, "Account is locked. Please try again later.");
+                } else if (error.message === 'Account is suspended') {
                     return this.handleError(req, res, 403, error.message);
                 }
                 

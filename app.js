@@ -1,3 +1,6 @@
+// Load environment variables from .env file
+require('dotenv').config();
+
 const express = require("express");
 const morgan = require("morgan");
 const cors = require("cors");
@@ -20,31 +23,50 @@ app.use(bodyParser.json());
 app.use(morgan("dev"));
 app.use(cors({ origin: true, credentials: true }));
 
-app.use(xmlparser());
+// XML body parser middleware - parses XML request bodies
+app.use(xmlparser({
+  explicitArray: false, // Don't create arrays for single elements
+  normalize: true,      // Normalize tag names to lowercase
+  normalizeTags: true,  // Normalize tag names to lowercase
+  trim: true            // Trim whitespace
+}));
 
 app.options("*", cors());
 
+// Add response formatting middleware
 app.use(responseMiddleware);
 
-//accepts xml input based on accept header
+// XML request handling middleware
 app.use((req, res, next) => {
-	const contentType = req.get("Accept");
-	req.isXml = contentType && contentType.includes("application/xml");
-
-	if (req.isXml && req.body && typeof req.body === "object") {
-		const rootElement = Object.keys(req.body)[0];
-		if (req.body[rootElement] instanceof Object) {
-			req.body = req.body[rootElement];
-
-			for (let key in req.body) {
-				if (Array.isArray(req.body[key]) && req.body[key].length === 1) {
-					req.body[key] = req.body[key][0];
-				}
-			}
-		}
-	}
-
-	next();
+  // Check if request content type is XML
+  const contentType = req.get("Content-Type") || "";
+  const isXmlRequest = contentType.includes("application/xml");
+  
+  // Check if client accepts XML responses
+  const acceptHeader = req.get("Accept") || "";
+  const wantsXmlResponse = acceptHeader.includes("application/xml") || req.query.format === "xml";
+  
+  // Set flags on request object for later use
+  req.isXml = wantsXmlResponse;
+  
+  // Process XML request body if present
+  if (isXmlRequest && req.body && typeof req.body === "object") {
+    // XML parser already converted the XML to JSON
+    // We may need to flatten nested structures
+    const rootElement = Object.keys(req.body)[0];
+    if (req.body[rootElement] && typeof req.body[rootElement] === "object") {
+      req.body = req.body[rootElement];
+      
+      // Flatten arrays with single elements for easier handling
+      for (let key in req.body) {
+        if (Array.isArray(req.body[key]) && req.body[key].length === 1) {
+          req.body[key] = req.body[key][0];
+        }
+      }
+    }
+  }
+  
+  next();
 });
 
 // Initialize database connection
@@ -107,19 +129,34 @@ app.use("/xml", xmlExampleRoutes);
 // Swagger API documentation
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpecs));
 
-app.use((error, req, res) => {
-	const status = error.statusCode || 500;
-	const message = error.message;
-	const data = error.data;
-	res.status(status).json({ message: message, data: data });
+// Global error handling middleware
+app.use((error, req, res, next) => {
+  if (!error) {
+    return next();
+  }
+  
+  const status = error.statusCode || 500;
+  const message = error.message || "An unexpected error occurred";
+  const data = error.data || null;
+  
+  // Use the response middleware to handle XML or JSON responses
+  res.response(req, res, status, { 
+    success: false, 
+    error: message,
+    data: data
+  });
 });
 
+// 404 handler
 app.use((req, res) => {
-	res.status(404).json({ message: "Route not found" });
+  res.response(req, res, 404, { 
+    success: false, 
+    error: "Route not found" 
+  });
 });
 
 app.listen(port, () => console.log(`Server is running on port ${port}`));
 
 process.on("unhandledRejection", (error) => {
-	console.error("Unhandled Rejection:", error);
+  console.error("Unhandled Rejection:", error);
 });

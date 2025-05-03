@@ -4,23 +4,14 @@
  */
 class BaseController {
     /**
-     * Handle success response with standardized format
+     * Handle successful response
      * @param {Object} req - Express request object
      * @param {Object} res - Express response object
      * @param {Number} statusCode - HTTP status code
      * @param {Object} data - Response data
-     * @returns {Object} Formatted response
+     * @returns {Object} - Response object
      */
     handleSuccess(req, res, statusCode, data) {
-        const format = req.isXml ? 'xml' : 'json';
-        
-        if (format === 'xml') {
-            return res.response(req, res, statusCode, { 
-                success: true,
-                ...data
-            });
-        }
-        
         return res.response(req, res, statusCode, { 
             success: true,
             ...data

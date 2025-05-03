@@ -103,8 +103,8 @@ Media.initialize(
         }
     },
     {
-        timestamps: false,
         tableName: "media",
+        timestamps: false,
     },
     sequelize
 );

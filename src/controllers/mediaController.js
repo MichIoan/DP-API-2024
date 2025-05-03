@@ -123,6 +123,7 @@ class MediaController extends BaseController {
                 return this.handleError(req, res, 400, "Profile ID and Media ID are required");
             }
             
+            // Verify the profile belongs to the authenticated user
             const userId = req.userId;
             const profile = await Profile.findOne({
                 where: {
@@ -164,6 +165,7 @@ class MediaController extends BaseController {
                 return this.handleError(req, res, 400, "Profile ID is required");
             }
             
+            // Verify the profile belongs to the authenticated user
             const userId = req.userId;
             const profile = await Profile.findOne({
                 where: {
@@ -202,6 +204,7 @@ class MediaController extends BaseController {
                 return this.handleError(req, res, 400, "Profile ID is required");
             }
             
+            // Verify the profile belongs to the authenticated user
             const userId = req.userId;
             const profile = await Profile.findOne({
                 where: {
@@ -269,6 +272,7 @@ class MediaController extends BaseController {
                 return this.handleError(req, res, 400, "Profile ID is required");
             }
             
+            // Verify the profile belongs to the authenticated user
             const userId = req.userId;
             const profile = await Profile.findOne({
                 where: {
@@ -294,6 +298,8 @@ class MediaController extends BaseController {
     }
 }
 
+// Create a singleton instance
 const mediaController = new MediaController();
 
+// Export the instance
 module.exports = mediaController;

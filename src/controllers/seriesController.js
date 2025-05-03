@@ -1,5 +1,5 @@
 const BaseController = require('./BaseController');
-const { SeriesService } = require('../services');
+const { seriesService } = require('../services');
 
 /**
  * Controller for handling series-related operations
@@ -20,7 +20,7 @@ class SeriesController extends BaseController {
         }
 
         try {
-            const newSeries = await SeriesService.createSeries(seriesData);
+            const newSeries = await seriesService.createSeries(seriesData);
 
             return this.handleSuccess(req, res, 201, {
                 message: "Series created successfully.",
@@ -47,7 +47,7 @@ class SeriesController extends BaseController {
                 classification: 'string'
             });
             
-            const result = await SeriesService.getAllSeries(options);
+            const result = await seriesService.getAllSeries(options);
             
             return this.handleSuccess(req, res, 200, result);
         } catch (error) {
@@ -69,7 +69,7 @@ class SeriesController extends BaseController {
         }
 
         try {
-            const series = await SeriesService.getSeriesById(seriesId);
+            const series = await seriesService.getSeriesById(seriesId);
 
             if (!series) {
                 return this.handleError(req, res, 404, "Series not found.");
@@ -96,7 +96,7 @@ class SeriesController extends BaseController {
         }
 
         try {
-            const updatedSeries = await SeriesService.updateSeries(seriesId, seriesData);
+            const updatedSeries = await seriesService.updateSeries(seriesId, seriesData);
 
             if (!updatedSeries) {
                 return this.handleError(req, res, 404, "Series not found.");
@@ -125,7 +125,7 @@ class SeriesController extends BaseController {
         }
 
         try {
-            const result = await SeriesService.deleteSeries(seriesId);
+            const result = await seriesService.deleteSeries(seriesId);
 
             if (!result) {
                 return this.handleError(req, res, 404, "Series not found.");
@@ -153,7 +153,7 @@ class SeriesController extends BaseController {
         }
 
         try {
-            const seasons = await SeriesService.getSeasons(seriesId);
+            const seasons = await seriesService.getSeasons(seriesId);
 
             return this.handleSuccess(req, res, 200, { seasons });
         } catch (error) {
@@ -177,7 +177,7 @@ class SeriesController extends BaseController {
         }
 
         try {
-            const newSeason = await SeriesService.createSeason(seriesId, seasonData);
+            const newSeason = await seriesService.createSeason(seriesId, seasonData);
 
             if (!newSeason) {
                 return this.handleError(req, res, 404, "Series not found.");
@@ -206,7 +206,7 @@ class SeriesController extends BaseController {
         }
 
         try {
-            const season = await SeriesService.getSeasonById(seasonId);
+            const season = await seriesService.getSeasonById(seasonId);
 
             if (!season) {
                 return this.handleError(req, res, 404, "Season not found.");
@@ -233,7 +233,7 @@ class SeriesController extends BaseController {
         }
 
         try {
-            const updatedSeason = await SeriesService.updateSeason(seasonId, seasonData);
+            const updatedSeason = await seriesService.updateSeason(seasonId, seasonData);
 
             if (!updatedSeason) {
                 return this.handleError(req, res, 404, "Season not found.");
@@ -262,7 +262,7 @@ class SeriesController extends BaseController {
         }
 
         try {
-            const result = await SeriesService.deleteSeason(seasonId);
+            const result = await seriesService.deleteSeason(seasonId);
 
             if (!result) {
                 return this.handleError(req, res, 404, "Season not found.");
@@ -290,7 +290,7 @@ class SeriesController extends BaseController {
         }
 
         try {
-            const episodes = await SeriesService.getEpisodes(seasonId);
+            const episodes = await seriesService.getEpisodes(seasonId);
 
             return this.handleSuccess(req, res, 200, { episodes });
         } catch (error) {
@@ -314,7 +314,7 @@ class SeriesController extends BaseController {
         }
 
         try {
-            const newEpisode = await SeriesService.createEpisode(seasonId, episodeData);
+            const newEpisode = await seriesService.createEpisode(seasonId, episodeData);
 
             if (!newEpisode) {
                 return this.handleError(req, res, 404, "Season not found.");
@@ -343,7 +343,7 @@ class SeriesController extends BaseController {
         }
 
         try {
-            const episode = await SeriesService.getEpisodeById(episodeId);
+            const episode = await seriesService.getEpisodeById(episodeId);
 
             if (!episode) {
                 return this.handleError(req, res, 404, "Episode not found.");
@@ -370,7 +370,7 @@ class SeriesController extends BaseController {
         }
 
         try {
-            const updatedEpisode = await SeriesService.updateEpisode(episodeId, episodeData);
+            const updatedEpisode = await seriesService.updateEpisode(episodeId, episodeData);
 
             if (!updatedEpisode) {
                 return this.handleError(req, res, 404, "Episode not found.");
@@ -399,7 +399,7 @@ class SeriesController extends BaseController {
         }
 
         try {
-            const result = await SeriesService.deleteEpisode(episodeId);
+            const result = await seriesService.deleteEpisode(episodeId);
 
             if (!result) {
                 return this.handleError(req, res, 404, "Episode not found.");
@@ -428,7 +428,7 @@ class SeriesController extends BaseController {
         }
 
         try {
-            const watchSession = await SeriesService.startWatchingEpisode(profileId, episodeId);
+            const watchSession = await seriesService.startWatchingEpisode(profileId, episodeId);
 
             return this.handleSuccess(req, res, 200, {
                 message: "Started watching episode.",
@@ -454,7 +454,7 @@ class SeriesController extends BaseController {
         }
 
         try {
-            const watchHistory = await SeriesService.endWatchingEpisode(
+            const watchHistory = await seriesService.endWatchingEpisode(
                 profileId, 
                 episodeId, 
                 watchedDuration, 

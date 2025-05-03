@@ -7,15 +7,16 @@ const sequelize = require('./sequelize');
 const fs = require('fs');
 const path = require('path');
 const { Pool } = require('pg');
+require('dotenv').config(); // Load environment variables from .env file
 require('../models/associations');
 
 // Database connection parameters from environment
 const dbConfig = {
-    host: process.env.DB_HOST || 'localhost',
-    port: process.env.DB_PORT || 5432,
-    database: process.env.DB_NAME || 'netflix',
-    user: process.env.DB_USER || 'postgres',
-    password: process.env.DB_PASSWORD || 'postgres'
+    host: process.env.DB_HOST,
+    port: parseInt(process.env.DB_PORT),
+    database: process.env.DB_NAME,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD
 };
 
 /**

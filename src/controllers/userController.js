@@ -1,6 +1,5 @@
 const BaseController = require("./BaseController");
-const { UserService } = require("../services");
-const User = require("../models/User");
+const { userService } = require("../services");
 
 /**
  * Controller for handling user account operations
@@ -16,7 +15,7 @@ class UserController extends BaseController {
         try {
             const userId = req.userId;
             
-            const user = await UserService.getUserById(userId);
+            const user = await userService.getUserById(userId);
             
             if (!user) {
                 return this.handleError(req, res, 404, "User not found");
@@ -40,7 +39,7 @@ class UserController extends BaseController {
             const userData = req.body;
             
             // Update user using service
-            const updatedUser = await UserService.updateUser(userId, userData);
+            const updatedUser = await userService.updateUser(userId, userData);
             
             return this.handleSuccess(req, res, 200, { 
                 message: "User account updated successfully",
@@ -74,7 +73,7 @@ class UserController extends BaseController {
             }
             
             // Delete user
-            await UserService.deleteUser(userId);
+            await userService.deleteUser(userId);
             
             return this.handleSuccess(req, res, 200, { 
                 message: "Account deleted successfully" 
@@ -94,7 +93,7 @@ class UserController extends BaseController {
         try {
             const userId = req.userId;
             
-            const referredUsers = await UserService.getReferredUsers(userId);
+            const referredUsers = await userService.getReferredUsers(userId);
             
             return this.handleSuccess(req, res, 200, { referredUsers });
         } catch (error) {
@@ -118,7 +117,7 @@ class UserController extends BaseController {
                 return this.handleError(req, res, 400, "Referral code is required");
             }
             
-            const result = await UserService.applyReferralCode(userId, referralCode);
+            const result = await userService.applyReferralCode(userId, referralCode);
             
             return this.handleSuccess(req, res, 200, result);
         } catch (error) {

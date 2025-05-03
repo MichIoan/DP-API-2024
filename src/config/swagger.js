@@ -1,4 +1,5 @@
 const swaggerJsdoc = require('swagger-jsdoc');
+require('dotenv').config(); // Load environment variables from .env file
 
 /**
  * Swagger configuration options
@@ -21,7 +22,7 @@ const options = {
     },
     servers: [
       {
-        url: 'http://localhost:8081',
+        url: process.env.API_URL || 'http://localhost:8081',
         description: 'Development server'
       }
     ],

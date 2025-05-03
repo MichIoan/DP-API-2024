@@ -1,5 +1,5 @@
 const BaseController = require('./BaseController');
-const WatchList = require("../models/WatchList");
+const { watchListService } = require('../services');
 
 /**
  * Controller for handling watch list operations
@@ -15,64 +15,25 @@ class WatchListController extends BaseController {
         const { profileId } = req.params;
 
         try {
-            const query = `
-                SELECT * FROM "watch_list_details"
-                WHERE profile_id = :profileId;
-            `;
+            const limit = req.query.limit ? parseInt(req.query.limit) : 20;
+            const watchList = await watchListService.getWatchList(profileId, limit);
             
-            const result = await WatchList.sequelize.query(query, {
-                replacements: { profileId },
-                type: WatchList.sequelize.QueryTypes.SELECT,
-            });
-
-            if (result.length === 0) {
-                return this.handleError(req, res, 404, "No movies found in the watchlist.");
+            if (watchList.length === 0) {
+                return this.handleSuccess(req, res, 200, { 
+                    message: "Watch list is empty",
+                    watchList: [] 
+                });
             }
 
-            return this.handleSuccess(req, res, 200, {
-                watchlist: result,
-            });
+            return this.handleSuccess(req, res, 200, { watchList });
         } catch (error) {
             console.error(error);
-            return this.handleError(req, res, 500, "Internal server error", error.message);
+            return this.handleError(req, res, 500, "Error retrieving watch list", error.message);
         }
     }
 
     /**
-     * Update watch list item
-     * @param {Object} req - Express request object
-     * @param {Object} res - Express response object
-     */
-    async updateWatchList(req, res) {
-        const { watchListId } = req.params;
-        const { status } = req.body;
-
-        const validation = this.validateRequiredFields(req.body, ['status']);
-        if (!validation.isValid) {
-            return this.handleError(req, res, 400, "Status is required");
-        }
-
-        try {
-            const watchListItem = await WatchList.findByPk(watchListId);
-
-            if (!watchListItem) {
-                return this.handleError(req, res, 404, "Watch list item not found");
-            }
-
-            await watchListItem.update({ status });
-
-            return this.handleSuccess(req, res, 200, {
-                message: "Watch list item updated successfully",
-                watchListItem
-            });
-        } catch (error) {
-            console.error(error);
-            return this.handleError(req, res, 500, "Internal server error", error.message);
-        }
-    }
-
-    /**
-     * Add item to watch list
+     * Add media to watch list
      * @param {Object} req - Express request object
      * @param {Object} res - Express response object
      */
@@ -81,62 +42,156 @@ class WatchListController extends BaseController {
 
         const validation = this.validateRequiredFields(req.body, ['profileId', 'mediaId']);
         if (!validation.isValid) {
-            return this.handleError(req, res, 400, "Profile ID and Media ID are required");
+            return this.handleError(req, res, 400, "Please provide profileId and mediaId.");
         }
 
         try {
-            // Check if item already exists in watchlist
-            const existingItem = await WatchList.findOne({
-                where: {
-                    profile_id: profileId,
-                    media_id: mediaId
-                }
-            });
-
-            if (existingItem) {
-                return this.handleError(req, res, 409, "Item already exists in watchlist");
+            // Verify the profile belongs to the authenticated user
+            const userId = req.userId;
+            const isAuthorized = await this.verifyProfileOwnership(userId, profileId);
+            
+            if (!isAuthorized) {
+                return this.handleError(req, res, 403, "You don't have permission to modify this profile's watch list");
             }
-
-            const watchListEntry = await WatchList.create({
-                profile_id: profileId,
-                media_id: mediaId,
-                status: 'added',
-                added_date: new Date()
-            });
-
+            
+            const watchListEntry = await watchListService.addToWatchList(profileId, mediaId);
+            
             return this.handleSuccess(req, res, 201, {
                 message: "Added to watch list",
                 watchListEntry
             });
         } catch (error) {
             console.error(error);
-            return this.handleError(req, res, 500, "Internal server error", error.message);
+            return this.handleError(req, res, 500, "Error adding to watch list", error.message);
         }
     }
 
     /**
-     * Remove item from watch list
+     * Update watch list entry
+     * @param {Object} req - Express request object
+     * @param {Object} res - Express response object
+     */
+    async updateWatchList(req, res) {
+        const { watchListId } = req.params;
+        const updateData = req.body;
+
+        if (!watchListId) {
+            return this.handleError(req, res, 400, "Please provide a watchListId to update.");
+        }
+
+        try {
+            // Verify the watch list entry belongs to the authenticated user
+            const userId = req.userId;
+            const isAuthorized = await this.verifyWatchListOwnership(userId, watchListId);
+            
+            if (!isAuthorized) {
+                return this.handleError(req, res, 403, "You don't have permission to update this watch list entry");
+            }
+            
+            const updatedEntry = await watchListService.updateWatchList(watchListId, updateData);
+            
+            if (!updatedEntry) {
+                return this.handleError(req, res, 404, "Watch list entry not found");
+            }
+            
+            return this.handleSuccess(req, res, 200, {
+                message: "Watch list entry updated",
+                watchListEntry: updatedEntry
+            });
+        } catch (error) {
+            console.error(error);
+            return this.handleError(req, res, 500, "Error updating watch list entry", error.message);
+        }
+    }
+
+    /**
+     * Remove media from watch list
      * @param {Object} req - Express request object
      * @param {Object} res - Express response object
      */
     async removeFromWatchList(req, res) {
         const { watchListId } = req.params;
 
+        if (!watchListId) {
+            return this.handleError(req, res, 400, "Please provide a watchListId to remove.");
+        }
+
         try {
-            const watchListItem = await WatchList.findByPk(watchListId);
-
-            if (!watchListItem) {
-                return this.handleError(req, res, 404, "Watch list item not found");
+            // Verify the watch list entry belongs to the authenticated user
+            const userId = req.userId;
+            const isAuthorized = await this.verifyWatchListOwnership(userId, watchListId);
+            
+            if (!isAuthorized) {
+                return this.handleError(req, res, 403, "You don't have permission to remove this watch list entry");
             }
-
-            await watchListItem.destroy();
-
+            
+            const result = await watchListService.removeFromWatchList(watchListId);
+            
+            if (!result) {
+                return this.handleError(req, res, 404, "Watch list entry not found");
+            }
+            
             return this.handleSuccess(req, res, 200, {
-                message: "Item removed from watch list"
+                message: "Removed from watch list successfully"
             });
         } catch (error) {
             console.error(error);
-            return this.handleError(req, res, 500, "Internal server error", error.message);
+            return this.handleError(req, res, 500, "Error removing from watch list", error.message);
+        }
+    }
+    
+    /**
+     * Verify that a profile belongs to the authenticated user
+     * @param {number} userId - User ID
+     * @param {number} profileId - Profile ID
+     * @returns {Promise<boolean>} - Whether the profile belongs to the user
+     * @private
+     */
+    async verifyProfileOwnership(userId, profileId) {
+        try {
+            // This would typically use profileService, but for simplicity we'll use a direct query
+            const { Profile } = require('../models/Profile');
+            const profile = await Profile.findOne({
+                where: {
+                    id: profileId,
+                    user_id: userId
+                }
+            });
+            
+            return !!profile;
+        } catch (error) {
+            console.error('Error verifying profile ownership:', error);
+            return false;
+        }
+    }
+    
+    /**
+     * Verify that a watch list entry belongs to the authenticated user
+     * @param {number} userId - User ID
+     * @param {number} watchListId - Watch list ID
+     * @returns {Promise<boolean>} - Whether the entry belongs to the user
+     * @private
+     */
+    async verifyWatchListOwnership(userId, watchListId) {
+        try {
+            // This would typically use a join query, but for simplicity we'll use a raw query
+            const { WatchList } = require('../models/WatchList');
+            const query = `
+                SELECT wl.id 
+                FROM "watch_lists" wl
+                JOIN "profiles" p ON wl.profile_id = p.id
+                WHERE wl.id = :watchListId AND p.user_id = :userId
+            `;
+            
+            const result = await WatchList.sequelize.query(query, {
+                replacements: { watchListId, userId },
+                type: WatchList.sequelize.QueryTypes.SELECT
+            });
+            
+            return result.length > 0;
+        } catch (error) {
+            console.error('Error verifying watch list ownership:', error);
+            return false;
         }
     }
 }
