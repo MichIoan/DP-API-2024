@@ -1,213 +1,479 @@
-const { Series } = require("../models/Series");
-const { Season } = require("../models/Season");
-const { Episode } = require("../models/Media");
-const response = (req, res, statusCode, data) => {
-	res.status(statusCode).json(data);
-};
+const BaseController = require('./BaseController');
+const { seriesService } = require('../services');
 
-const createSeries = async (req, res) => {
-	const series = req.body;
+/**
+ * Controller for handling series-related operations
+ * Extends BaseController to inherit common functionality
+ */
+class SeriesController extends BaseController {
+    /**
+     * Create a new series
+     * @param {Object} req - Express request object
+     * @param {Object} res - Express response object
+     */
+    async createSeries(req, res) {
+        const seriesData = req.body;
 
-	if (
-		!series.title ||
-		!series.start_date ||
-		!series.genre ||
-		!series.viewing_classification
-	) {
-		response(req, res, 400, {
-			message: "Please provide the necessary properties for the series.",
-		});
-		return;
-	}
+        const validation = this.validateRequiredFields(req.body, ['title']);
+        if (!validation.isValid) {
+            return this.handleError(req, res, 400, "Please provide at least a title for the series.");
+        }
 
-	try {
-		const newSeries = await Series.create({
-			title: series.title,
-			age_restriction: series.age_restriction || null,
-			start_date: series.start_date,
-			genre: series.genre,
-			viewing_classification: series.viewing_classification,
-		});
+        try {
+            const newSeries = await seriesService.createSeries(seriesData);
 
-		response(req, res, 200, {
-			message: "Series added successfully.",
-			series: newSeries,
-		});
-	} catch (err) {
-		console.log(err);
-		response(res, 500, {
-			error: "Internal server error",
-		});
-	}
-};
+            return this.handleSuccess(req, res, 201, {
+                message: "Series created successfully.",
+                series: newSeries,
+            });
+        } catch (error) {
+            console.error(error);
+            return this.handleError(req, res, 500, "Internal server error", error.message);
+        }
+    }
 
-const createSeason = async (req, res) => {
-	const { seriesId } = req.params;
-	const { title, season_number } = req.body;
+    /**
+     * Get all series with optional filtering
+     * @param {Object} req - Express request object
+     * @param {Object} res - Express response object
+     */
+    async getAllSeries(req, res) {
+        try {
+            // Convert query parameters to appropriate types
+            const options = this.convertParams(req.query, {
+                page: 'number',
+                limit: 'number',
+                genre: 'string',
+                classification: 'string'
+            });
+            
+            const result = await seriesService.getAllSeries(options);
+            
+            return this.handleSuccess(req, res, 200, result);
+        } catch (error) {
+            console.error(error);
+            return this.handleError(req, res, 500, "Internal server error", error.message);
+        }
+    }
 
-	if (!title || !season_number) {
-		response(req, res, 400, {
-			message: "Please provide title and season number.",
-		});
-		return;
-	}
+    /**
+     * Get a series by ID
+     * @param {Object} req - Express request object
+     * @param {Object} res - Express response object
+     */
+    async getSeriesById(req, res) {
+        const { seriesId } = req.params;
 
-	try {
-		const newSeason = await Season.create({
-			title,
-			season_number,
-			seriesId,
-		});
+        if (!seriesId) {
+            return this.handleError(req, res, 400, "Please provide a seriesId to retrieve.");
+        }
 
-		response(req, res, 200, {
-			message: "Season added successfully.",
-			season: newSeason,
-		});
-	} catch (err) {
-		console.log(err);
-		response(res, 500, {
-			error: "Internal server error",
-		});
-	}
-};
+        try {
+            const series = await seriesService.getSeriesById(seriesId);
 
-const createEpisode = async (req, res) => {
-	const { seasonId } = req.params;
-	const { title, episode_number, duration } = req.body;
+            if (!series) {
+                return this.handleError(req, res, 404, "Series not found.");
+            }
 
-	if (!title || !episode_number || !duration) {
-		response(req, res, 400, {
-			message: "Please provide title, episode number, and duration.",
-		});
-		return;
-	}
+            return this.handleSuccess(req, res, 200, { series });
+        } catch (error) {
+            console.error(error);
+            return this.handleError(req, res, 500, "Internal server error", error.message);
+        }
+    }
 
-	try {
-		const newEpisode = await Episode.create({
-			title,
-			episode_number,
-			duration,
-			seasonId,
-		});
+    /**
+     * Update a series
+     * @param {Object} req - Express request object
+     * @param {Object} res - Express response object
+     */
+    async updateSeries(req, res) {
+        const { seriesId } = req.params;
+        const seriesData = req.body;
 
-		response(req, res, 200, {
-			message: "Episode added successfully.",
-			episode: newEpisode,
-		});
-	} catch (err) {
-		console.log(err);
-		response(res, 500, {
-			error: "Internal server error",
-		});
-	}
-};
+        if (!seriesId) {
+            return this.handleError(req, res, 400, "Please provide a seriesId to update.");
+        }
 
-const deleteSeries = async (req, res) => {
-	const { seriesId } = req.params;
+        try {
+            const updatedSeries = await seriesService.updateSeries(seriesId, seriesData);
 
-	try {
-		const result = await Series.destroy({
-			where: { id: seriesId },
-		});
+            if (!updatedSeries) {
+                return this.handleError(req, res, 404, "Series not found.");
+            }
 
-		if (result === 0) {
-			response(req, res, 404, {
-				message: "Series not found.",
-			});
-			return;
-		}
+            return this.handleSuccess(req, res, 200, {
+                message: "Series updated successfully.",
+                series: updatedSeries
+            });
+        } catch (error) {
+            console.error(error);
+            return this.handleError(req, res, 500, "Internal server error", error.message);
+        }
+    }
 
-		response(req, res, 200, {
-			message: "Series deleted successfully.",
-		});
-	} catch (err) {
-		console.log(err);
-		response(res, 500, {
-			error: "Internal server error",
-		});
-	}
-};
+    /**
+     * Delete a series
+     * @param {Object} req - Express request object
+     * @param {Object} res - Express response object
+     */
+    async deleteSeries(req, res) {
+        const { seriesId } = req.params;
 
-const getSeries = async (req, res) => {
-	try {
-		const series = await Series.findAll();
+        if (!seriesId) {
+            return this.handleError(req, res, 400, "Please provide a seriesId to delete.");
+        }
 
-		if (series.length === 0) {
-			response(req, res, 200, {
-				message: "You have no series in your database.",
-			});
-			return;
-		}
+        try {
+            const result = await seriesService.deleteSeries(seriesId);
 
-		response(req, res, 200, { series });
-	} catch (err) {
-		response(res, 500, {
-			error: "Internal server error",
-		});
-	}
-};
+            if (!result) {
+                return this.handleError(req, res, 404, "Series not found.");
+            }
 
-const getSeriesById = async (req, res) => {
-	const { seriesId } = req.params;
+            return this.handleSuccess(req, res, 200, {
+                message: "Series deleted successfully."
+            });
+        } catch (error) {
+            console.error(error);
+            return this.handleError(req, res, 500, "Internal server error", error.message);
+        }
+    }
 
-	try {
-		const series = await Series.findByPk(seriesId);
+    /**
+     * Get all seasons for a series
+     * @param {Object} req - Express request object
+     * @param {Object} res - Express response object
+     */
+    async getSeasons(req, res) {
+        const { seriesId } = req.params;
 
-		if (!series) {
-			response(req, res, 404, {
-				message: "Series not found.",
-			});
-			return;
-		}
+        if (!seriesId) {
+            return this.handleError(req, res, 400, "Please provide a seriesId to retrieve seasons.");
+        }
 
-		response(req, res, 200, { series });
-	} catch (err) {
-		console.log(err);
-		response(res, 500, {
-			error: "Internal server error",
-		});
-	}
-};
+        try {
+            const seasons = await seriesService.getSeasons(seriesId);
 
-const startSeriesEpisode = async (req, res) => {
-	const { profileId, seriesId, season, episode } = req.params;
+            return this.handleSuccess(req, res, 200, { seasons });
+        } catch (error) {
+            console.error(error);
+            return this.handleError(req, res, 500, "Internal server error", error.message);
+        }
+    }
 
-	try {
-		// Logic to mark episode as started (add to user's profile or watch history)
-		response(req, res, 200, {
-			message: `Started watching series ${seriesId}, season ${season}, episode ${episode}.`,
-		});
-	} catch (err) {
-		console.log(err);
-		response(res, 500, {
-			error: "Internal server error",
-		});
-	}
-};
+    /**
+     * Create a season for a series
+     * @param {Object} req - Express request object
+     * @param {Object} res - Express response object
+     */
+    async createSeason(req, res) {
+        const { seriesId } = req.params;
+        const seasonData = req.body;
 
-const endSeriesEpisode = async (req, res) => {
-	const { profileId, seriesId, season, episode } = req.params;
+        const validation = this.validateRequiredFields(req.body, ['season_number', 'title']);
+        if (!validation.isValid) {
+            return this.handleError(req, res, 400, "Please provide at least a season number and title for the season.");
+        }
 
-	try {
-		// Logic to mark episode as finished (update user's profile or watch history)
-		response(req, res, 200, {
-			message: `Finished watching series ${seriesId}, season ${season}, episode ${episode}.`,
-		});
-	} catch (err) {
-		console.log(err);
-		response(res, 500, {
-			error: "Internal server error",
-		});
-	}
-};
+        try {
+            const newSeason = await seriesService.createSeason(seriesId, seasonData);
 
-module.exports = {
-	createSeries,
-	createSeason,
-	createEpisode,
-	deleteSeries,
-	getSeries,
-	getSeriesById,
-	startSeriesEpisode,
-	endSeriesEpisode,
-};
+            if (!newSeason) {
+                return this.handleError(req, res, 404, "Series not found.");
+            }
+
+            return this.handleSuccess(req, res, 201, {
+                message: "Season created successfully.",
+                season: newSeason
+            });
+        } catch (error) {
+            console.error(error);
+            return this.handleError(req, res, 500, "Internal server error", error.message);
+        }
+    }
+
+    /**
+     * Get a season by ID
+     * @param {Object} req - Express request object
+     * @param {Object} res - Express response object
+     */
+    async getSeasonById(req, res) {
+        const { seasonId } = req.params;
+
+        if (!seasonId) {
+            return this.handleError(req, res, 400, "Please provide a seasonId to retrieve.");
+        }
+
+        try {
+            const season = await seriesService.getSeasonById(seasonId);
+
+            if (!season) {
+                return this.handleError(req, res, 404, "Season not found.");
+            }
+
+            return this.handleSuccess(req, res, 200, { season });
+        } catch (error) {
+            console.error(error);
+            return this.handleError(req, res, 500, "Internal server error", error.message);
+        }
+    }
+
+    /**
+     * Update a season
+     * @param {Object} req - Express request object
+     * @param {Object} res - Express response object
+     */
+    async updateSeason(req, res) {
+        const { seasonId } = req.params;
+        const seasonData = req.body;
+
+        if (!seasonId) {
+            return this.handleError(req, res, 400, "Please provide a seasonId to update.");
+        }
+
+        try {
+            const updatedSeason = await seriesService.updateSeason(seasonId, seasonData);
+
+            if (!updatedSeason) {
+                return this.handleError(req, res, 404, "Season not found.");
+            }
+
+            return this.handleSuccess(req, res, 200, {
+                message: "Season updated successfully.",
+                season: updatedSeason
+            });
+        } catch (error) {
+            console.error(error);
+            return this.handleError(req, res, 500, "Internal server error", error.message);
+        }
+    }
+
+    /**
+     * Delete a season
+     * @param {Object} req - Express request object
+     * @param {Object} res - Express response object
+     */
+    async deleteSeason(req, res) {
+        const { seasonId } = req.params;
+
+        if (!seasonId) {
+            return this.handleError(req, res, 400, "Please provide a seasonId to delete.");
+        }
+
+        try {
+            const result = await seriesService.deleteSeason(seasonId);
+
+            if (!result) {
+                return this.handleError(req, res, 404, "Season not found.");
+            }
+
+            return this.handleSuccess(req, res, 200, {
+                message: "Season deleted successfully."
+            });
+        } catch (error) {
+            console.error(error);
+            return this.handleError(req, res, 500, "Internal server error", error.message);
+        }
+    }
+
+    /**
+     * Get all episodes for a season
+     * @param {Object} req - Express request object
+     * @param {Object} res - Express response object
+     */
+    async getEpisodes(req, res) {
+        const { seasonId } = req.params;
+
+        if (!seasonId) {
+            return this.handleError(req, res, 400, "Please provide a seasonId to retrieve episodes.");
+        }
+
+        try {
+            const episodes = await seriesService.getEpisodes(seasonId);
+
+            return this.handleSuccess(req, res, 200, { episodes });
+        } catch (error) {
+            console.error(error);
+            return this.handleError(req, res, 500, "Internal server error", error.message);
+        }
+    }
+
+    /**
+     * Create an episode for a season
+     * @param {Object} req - Express request object
+     * @param {Object} res - Express response object
+     */
+    async createEpisode(req, res) {
+        const { seasonId } = req.params;
+        const episodeData = req.body;
+
+        const validation = this.validateRequiredFields(req.body, ['episode_number', 'title', 'duration']);
+        if (!validation.isValid) {
+            return this.handleError(req, res, 400, "Please provide at least an episode number, title, and duration for the episode.");
+        }
+
+        try {
+            const newEpisode = await seriesService.createEpisode(seasonId, episodeData);
+
+            if (!newEpisode) {
+                return this.handleError(req, res, 404, "Season not found.");
+            }
+
+            return this.handleSuccess(req, res, 201, {
+                message: "Episode created successfully.",
+                episode: newEpisode
+            });
+        } catch (error) {
+            console.error(error);
+            return this.handleError(req, res, 500, "Internal server error", error.message);
+        }
+    }
+
+    /**
+     * Get an episode by ID
+     * @param {Object} req - Express request object
+     * @param {Object} res - Express response object
+     */
+    async getEpisodeById(req, res) {
+        const { episodeId } = req.params;
+
+        if (!episodeId) {
+            return this.handleError(req, res, 400, "Please provide an episodeId to retrieve.");
+        }
+
+        try {
+            const episode = await seriesService.getEpisodeById(episodeId);
+
+            if (!episode) {
+                return this.handleError(req, res, 404, "Episode not found.");
+            }
+
+            return this.handleSuccess(req, res, 200, { episode });
+        } catch (error) {
+            console.error(error);
+            return this.handleError(req, res, 500, "Internal server error", error.message);
+        }
+    }
+
+    /**
+     * Update an episode
+     * @param {Object} req - Express request object
+     * @param {Object} res - Express response object
+     */
+    async updateEpisode(req, res) {
+        const { episodeId } = req.params;
+        const episodeData = req.body;
+
+        if (!episodeId) {
+            return this.handleError(req, res, 400, "Please provide an episodeId to update.");
+        }
+
+        try {
+            const updatedEpisode = await seriesService.updateEpisode(episodeId, episodeData);
+
+            if (!updatedEpisode) {
+                return this.handleError(req, res, 404, "Episode not found.");
+            }
+
+            return this.handleSuccess(req, res, 200, {
+                message: "Episode updated successfully.",
+                episode: updatedEpisode
+            });
+        } catch (error) {
+            console.error(error);
+            return this.handleError(req, res, 500, "Internal server error", error.message);
+        }
+    }
+
+    /**
+     * Delete an episode
+     * @param {Object} req - Express request object
+     * @param {Object} res - Express response object
+     */
+    async deleteEpisode(req, res) {
+        const { episodeId } = req.params;
+
+        if (!episodeId) {
+            return this.handleError(req, res, 400, "Please provide an episodeId to delete.");
+        }
+
+        try {
+            const result = await seriesService.deleteEpisode(episodeId);
+
+            if (!result) {
+                return this.handleError(req, res, 404, "Episode not found.");
+            }
+
+            return this.handleSuccess(req, res, 200, {
+                message: "Episode deleted successfully."
+            });
+        } catch (error) {
+            console.error(error);
+            return this.handleError(req, res, 500, "Internal server error", error.message);
+        }
+    }
+
+    /**
+     * Start watching an episode
+     * @param {Object} req - Express request object
+     * @param {Object} res - Express response object
+     */
+    async startWatchingEpisode(req, res) {
+        const { profileId, episodeId } = req.body;
+
+        const validation = this.validateRequiredFields(req.body, ['profileId', 'episodeId']);
+        if (!validation.isValid) {
+            return this.handleError(req, res, 400, "Profile ID and Episode ID are required.");
+        }
+
+        try {
+            const watchSession = await seriesService.startWatchingEpisode(profileId, episodeId);
+
+            return this.handleSuccess(req, res, 200, {
+                message: "Started watching episode.",
+                watchSession
+            });
+        } catch (error) {
+            console.error(error);
+            return this.handleError(req, res, 500, "Internal server error", error.message);
+        }
+    }
+
+    /**
+     * End watching an episode
+     * @param {Object} req - Express request object
+     * @param {Object} res - Express response object
+     */
+    async endWatchingEpisode(req, res) {
+        const { profileId, episodeId, watchedDuration, completed } = req.body;
+
+        const validation = this.validateRequiredFields(req.body, ['profileId', 'episodeId', 'watchedDuration']);
+        if (!validation.isValid) {
+            return this.handleError(req, res, 400, "Profile ID, Episode ID, and watched duration are required.");
+        }
+
+        try {
+            const watchHistory = await seriesService.endWatchingEpisode(
+                profileId, 
+                episodeId, 
+                watchedDuration, 
+                completed || false
+            );
+
+            return this.handleSuccess(req, res, 200, {
+                message: "Ended watching episode.",
+                watchHistory
+            });
+        } catch (error) {
+            console.error(error);
+            return this.handleError(req, res, 500, "Internal server error", error.message);
+        }
+    }
+}
+
+// Create a singleton instance
+const seriesController = new SeriesController();
+
+// Export the instance
+module.exports = seriesController;

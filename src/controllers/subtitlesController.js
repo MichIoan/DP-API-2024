@@ -1,144 +1,160 @@
+const BaseController = require('./BaseController');
 const { Subtitles } = require("../models");
 
-const createSubtitles = async (req, res) => {
-    const subtitles = req.body;
+/**
+ * Controller for handling subtitles-related operations
+ * Extends BaseController to inherit common functionality
+ */
+class SubtitlesController extends BaseController {
+    /**
+     * Create new subtitles
+     * @param {Object} req - Express request object
+     * @param {Object} res - Express response object
+     */
+    async createSubtitles(req, res) {
+        const subtitles = req.body;
 
-    if (!subtitles.media_id) {
-        return res.status(400).json({
-            message: "Please provide a media_id for the subtitles.",
-        });
-    }
-
-    try {
-        const newSubtitles = await Subtitles.create({
-            media_id: subtitles.media_id,
-        });
-
-        return res.status(201).json({
-            message: "Subtitles created successfully.",
-            subtitles: newSubtitles,
-        });
-    } catch (error) {
-        console.error(error);
-        return res.status(500).json({
-            error: "Internal server error",
-        });
-    }
-};
-
-const deleteSubtitles = async (req, res) => {
-    const { subtitlesId } = req.params;
-
-    try {
-        const deleted = await Subtitles.destroy({
-            where: { subtitles_id: subtitlesId },
-        });
-
-        if (!deleted) {
-            return res.status(404).json({
-                message: "Subtitles not found.",
-            });
+        const validation = this.validateRequiredFields(req.body, ['media_id']);
+        if (!validation.isValid) {
+            return this.handleError(req, res, 400, "Please provide a media_id for the subtitles.");
         }
 
-        return res.status(200).json({
-            message: "Subtitles deleted successfully.",
-        });
-    } catch (error) {
-        console.error(error);
-        return res.status(500).json({
-            error: "Internal server error",
-        });
-    }
-};
-
-const getSubtitlesByMediaId = async (req, res) => {
-    const { mediaId } = req.params;
-
-    try {
-        const subtitles = await Subtitles.findAll({
-            where: { media_id: mediaId },
-        });
-
-        if (!subtitles.length) {
-            return res.status(404).json({
-                message: "No subtitles found for the specified media.",
+        try {
+            const newSubtitles = await Subtitles.create({
+                media_id: subtitles.media_id,
+                language: subtitles.language || 'en',
+                file_path: subtitles.file_path || null
             });
-        }
 
-        return res.status(200).json(subtitles);
-    } catch (error) {
-        console.error(error);
-        return res.status(500).json({
-            error: "Internal server error",
-        });
-    }
-};
-
-const getSubtitlesById = async (req, res) => {
-    const { subtitlesId } = req.params;
-
-    try {
-        const subtitles = await Subtitles.findByPk(subtitlesId);
-
-        if (!subtitles) {
-            return res.status(404).json({
-                message: "Subtitles not found.",
+            return this.handleSuccess(req, res, 201, {
+                message: "Subtitles created successfully.",
+                subtitles: newSubtitles,
             });
+        } catch (error) {
+            console.error(error);
+            return this.handleError(req, res, 500, "Internal server error", error.message);
         }
-
-        return res.status(200).json(subtitles);
-    } catch (error) {
-        console.error(error);
-        return res.status(500).json({
-            error: "Internal server error",
-        });
     }
-};
 
-const updateSubtitles = async (req, res) => {
-    const { subtitlesId } = req.params;
-    const updatedData = req.body;
+    /**
+     * Delete subtitles by ID
+     * @param {Object} req - Express request object
+     * @param {Object} res - Express response object
+     */
+    async deleteSubtitles(req, res) {
+        const { subtitleId } = req.params;
 
-    try {
-        const [updated] = await Subtitles.update(updatedData, {
-            where: { subtitles_id: subtitlesId },
-        });
+        try {
+            const subtitles = await Subtitles.findByPk(subtitleId);
+            
+            if (!subtitles) {
+                return this.handleError(req, res, 404, "Subtitles not found.");
+            }
 
-        if (!updated) {
-            return res.status(404).json({
-                message: "Subtitles not found or no changes made.",
+            await subtitles.destroy();
+
+            return this.handleSuccess(req, res, 200, {
+                message: "Subtitles deleted successfully.",
             });
+        } catch (error) {
+            console.error(error);
+            return this.handleError(req, res, 500, "Internal server error", error.message);
         }
-
-        return res.status(200).json({
-            message: "Subtitles updated successfully.",
-        });
-    } catch (error) {
-        console.error(error);
-        return res.status(500).json({
-            error: "Internal server error",
-        });
     }
-};
 
-const getAllSubtitles = async (req, res) => {
-    try {
-        const subtitles = await Subtitles.findAll();
+    /**
+     * Get subtitles by media ID
+     * @param {Object} req - Express request object
+     * @param {Object} res - Express response object
+     */
+    async getSubtitlesByMediaId(req, res) {
+        const { mediaId } = req.params;
 
-        return res.status(200).json(subtitles);
-    } catch (error) {
-        console.error(error);
-        return res.status(500).json({
-            error: "Internal server error",
-        });
+        try {
+            const subtitles = await Subtitles.findAll({
+                where: { media_id: mediaId },
+            });
+
+            if (subtitles.length === 0) {
+                return this.handleError(req, res, 404, "No subtitles found for this media.");
+            }
+
+            return this.handleSuccess(req, res, 200, { subtitles });
+        } catch (error) {
+            console.error(error);
+            return this.handleError(req, res, 500, "Internal server error", error.message);
+        }
     }
-};
 
-module.exports = {
-    createSubtitles,
-    deleteSubtitles,
-    getSubtitlesByMediaId,
-    getSubtitlesById,
-    updateSubtitles,
-    getAllSubtitles,
-};
+    /**
+     * Get subtitles by ID
+     * @param {Object} req - Express request object
+     * @param {Object} res - Express response object
+     */
+    async getSubtitlesById(req, res) {
+        const { subtitleId } = req.params;
+
+        try {
+            const subtitles = await Subtitles.findByPk(subtitleId);
+
+            if (!subtitles) {
+                return this.handleError(req, res, 404, "Subtitles not found.");
+            }
+
+            return this.handleSuccess(req, res, 200, { subtitles });
+        } catch (error) {
+            console.error(error);
+            return this.handleError(req, res, 500, "Internal server error", error.message);
+        }
+    }
+
+    /**
+     * Update subtitles by ID
+     * @param {Object} req - Express request object
+     * @param {Object} res - Express response object
+     */
+    async updateSubtitles(req, res) {
+        const { subtitleId } = req.params;
+        const subtitlesData = req.body;
+
+        try {
+            const subtitles = await Subtitles.findByPk(subtitleId);
+
+            if (!subtitles) {
+                return this.handleError(req, res, 404, "Subtitles not found.");
+            }
+
+            await subtitles.update(subtitlesData);
+
+            return this.handleSuccess(req, res, 200, {
+                message: "Subtitles updated successfully.",
+                subtitles,
+            });
+        } catch (error) {
+            console.error(error);
+            return this.handleError(req, res, 500, "Internal server error", error.message);
+        }
+    }
+
+    /**
+     * Get all subtitles
+     * @param {Object} req - Express request object
+     * @param {Object} res - Express response object
+     */
+    async getAllSubtitles(req, res) {
+        try {
+            const subtitles = await Subtitles.findAll();
+
+            return this.handleSuccess(req, res, 200, { subtitles });
+        } catch (error) {
+            console.error(error);
+            return this.handleError(req, res, 500, "Internal server error", error.message);
+        }
+    }
+}
+
+// Create a singleton instance
+const subtitlesController = new SubtitlesController();
+
+// Export the instance
+module.exports = subtitlesController;
