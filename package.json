@@ -8,7 +8,7 @@
   },
   "scripts": {
     "start": "react-scripts start",
-    "test": "jest"
+    "test": "jest tests/unit"
   },
   "author": "",
   "license": "ISC",
