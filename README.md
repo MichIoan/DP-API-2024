@@ -65,7 +65,7 @@ Dataprocessing API 2024
    ```
    The API will be available at `http://localhost:<port>`
 
-   <port> is the port you specified in your `.env` file
+   `<port>` is the port you specified in your `.env` file
 
 2. **Run in Development Mode** (with auto-reload)
    ```bash
