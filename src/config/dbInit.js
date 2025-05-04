@@ -39,8 +39,15 @@ async function initDatabase(force = false) {
             await runSchemaSql();
         } else {
             console.log('Syncing models with database...');
-            await sequelize.sync({ alter: true });
-            console.log('Models synchronized with database.');
+            try {
+                // First try with alter: false to avoid conflicts with views
+                await sequelize.sync({ alter: false });
+                console.log('Models synchronized with database (without altering existing tables).');
+            } catch (syncError) {
+                console.warn('Warning: Could not sync models with database. This is often normal if the database already exists.');
+                console.warn('Error details:', syncError.message);
+                console.log('Continuing with existing database schema...');
+            }
         }
     } catch (error) {
         console.error('Error initializing database:', error);

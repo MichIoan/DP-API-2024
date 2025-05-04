@@ -873,7 +873,7 @@ router.delete("/:seriesId/seasons/:seasonId/episodes/:episodeId", seriesControll
  *         $ref: '#/components/responses/NotFoundError'
  */
 // Start watching an episode
-router.post("/watch/:seriesId/seasons/:seasonId/episodes/:episodeId/start", seriesController.startSeriesEpisode);
+router.post("/watch/:seriesId/seasons/:seasonId/episodes/:episodeId/start", seriesController.startWatchingEpisode);
 
 /**
  * @swagger
@@ -944,6 +944,6 @@ router.post("/watch/:seriesId/seasons/:seasonId/episodes/:episodeId/start", seri
  *         $ref: '#/components/responses/NotFoundError'
  */
 // Finish watching an episode
-router.post("/watch/:seriesId/seasons/:seasonId/episodes/:episodeId/end", seriesController.endSeriesEpisode);
+router.post("/watch/:seriesId/seasons/:seasonId/episodes/:episodeId/end", seriesController.endWatchingEpisode);
 
 module.exports = router;
