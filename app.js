@@ -90,6 +90,10 @@ app.use("/auth", authRoutes);
 const userRoutes = require("./src/routes/userRoutes");
 app.use("/user", userRoutes);
 
+//routes for admin operations
+const adminRoutes = require("./src/routes/adminRoutes");
+app.use("/admin", adminRoutes);
+
 //routes for media (movies and series)
 const mediaRoutes = require("./src/routes/mediaRoutes");
 app.use("/media", mediaRoutes);

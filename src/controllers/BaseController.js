@@ -2,6 +2,7 @@
  * Base controller class that provides common functionality for all controllers
  * Implements shared methods for response handling, validation, etc.
  */
+const responseUtils = require('../utils/responseUtils');
 class BaseController {
     /**
      * Handle successful response
@@ -9,13 +10,13 @@ class BaseController {
      * @param {Object} res - Express response object
      * @param {Number} statusCode - HTTP status code
      * @param {Object} data - Response data
+     * @param {String} message - Success message
+     * @param {Object} meta - Metadata (pagination, etc.)
      * @returns {Object} - Response object
      */
-    handleSuccess(req, res, statusCode, data) {
-        return res.response(req, res, statusCode, { 
-            success: true,
-            ...data
-        });
+    handleSuccess(req, res, statusCode, data, message = 'Success', meta = null) {
+        const response = responseUtils.successResponse(statusCode, message, data, meta);
+        return res.status(response.statusCode).json(response.body);
     }
     
     /**
@@ -24,20 +25,73 @@ class BaseController {
      * @param {Object} res - Express response object
      * @param {Number} statusCode - HTTP status code
      * @param {String} message - Error message
-     * @param {Object} details - Additional error details
+     * @param {Object|Array} errors - Additional error details
      * @returns {Object} Formatted error response
      */
-    handleError(req, res, statusCode, message, details = null) {
-        const errorResponse = {
-            success: false,
-            error: message
-        };
-        
-        if (details) {
-            errorResponse.details = details;
-        }
-        
-        return res.response(req, res, statusCode, errorResponse);
+    handleError(req, res, statusCode, message, errors = null) {
+        const response = responseUtils.errorResponse(statusCode, message, errors);
+        return res.status(response.statusCode).json(response.body);
+    }
+    
+    /**
+     * Handle not found error
+     * @param {Object} req - Express request object
+     * @param {Object} res - Express response object
+     * @param {String} resource - Resource that was not found
+     * @returns {Object} Not found response
+     */
+    handleNotFound(req, res, resource = 'Resource') {
+        const response = responseUtils.notFoundResponse(resource);
+        return res.status(response.statusCode).json(response.body);
+    }
+    
+    /**
+     * Handle unauthorized error
+     * @param {Object} req - Express request object
+     * @param {Object} res - Express response object
+     * @param {String} message - Unauthorized message
+     * @returns {Object} Unauthorized response
+     */
+    handleUnauthorized(req, res, message = 'Unauthorized') {
+        const response = responseUtils.unauthorizedResponse(message);
+        return res.status(response.statusCode).json(response.body);
+    }
+    
+    /**
+     * Handle forbidden error
+     * @param {Object} req - Express request object
+     * @param {Object} res - Express response object
+     * @param {String} message - Forbidden message
+     * @returns {Object} Forbidden response
+     */
+    handleForbidden(req, res, message = 'Forbidden') {
+        const response = responseUtils.forbiddenResponse(message);
+        return res.status(response.statusCode).json(response.body);
+    }
+    
+    /**
+     * Handle validation error
+     * @param {Object} req - Express request object
+     * @param {Object} res - Express response object
+     * @param {Array} errors - Validation errors
+     * @returns {Object} Validation error response
+     */
+    handleValidationError(req, res, errors) {
+        const response = responseUtils.validationErrorResponse(errors);
+        return res.status(response.statusCode).json(response.body);
+    }
+    
+    /**
+     * Handle server error
+     * @param {Object} req - Express request object
+     * @param {Object} res - Express response object
+     * @param {String} message - Server error message
+     * @param {Error} error - Error object
+     * @returns {Object} Server error response
+     */
+    handleServerError(req, res, message = 'Internal server error', error = null) {
+        const response = responseUtils.serverErrorResponse(message, error);
+        return res.status(response.statusCode).json(response.body);
     }
     
     /**

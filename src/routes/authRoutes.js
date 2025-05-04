@@ -1,5 +1,8 @@
 const express = require("express");
 const authController = require("../controllers/authController");
+const isLoggedIn = require("../middleware/isLoggedIn");
+const validate = require("../middleware/validate");
+const { registerSchema, loginSchema, refreshTokenSchema } = require("../validation/authValidation");
 
 const router = express.Router();
 
@@ -75,7 +78,7 @@ const router = express.Router();
  *                   type: string
  *                   example: Internal server error
  */
-router.post("/register", authController.register);
+router.post("/register", validate(registerSchema), authController.register);
 
 /**
  * @swagger
@@ -135,6 +138,71 @@ router.post("/register", authController.register);
  *       500:
  *         description: Server error
  */
-router.post("/login", authController.login);
+router.post("/login", validate(loginSchema), authController.login);
+
+/**
+ * @swagger
+ * /auth/refresh-token:
+ *   post:
+ *     summary: Refresh access token
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - refreshToken
+ *             properties:
+ *               refreshToken:
+ *                 type: string
+ *                 format: password
+ *                 description: Refresh token
+ *     responses:
+ *       200:
+ *         description: Token refreshed successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 token:
+ *                   type: string
+ *                   example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+ *       400:
+ *         description: Invalid input
+ *       401:
+ *         description: Invalid refresh token
+ *       500:
+ *         description: Server error
+ */
+router.post("/refresh-token", validate(refreshTokenSchema), authController.refreshToken);
+
+/**
+ * @swagger
+ * /auth/logout:
+ *   post:
+ *     summary: Logout a user
+ *     tags: [Authentication]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Logout successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Logout successful
+ *       401:
+ *         description: Invalid credentials
+ *       500:
+ *         description: Server error
+ */
+router.post("/logout", isLoggedIn, authController.logout);
 
 module.exports = router;

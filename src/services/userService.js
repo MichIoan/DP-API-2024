@@ -1,8 +1,11 @@
 const DbUtils = require('../utils/dbUtils');
 const { User } = require('../models/User');
+const RefreshToken = require('../models/RefreshToken');
 const UserStatus = require('../models/enums/UserStatus');
+const UserRole = require('../models/enums/UserRole');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const sequelize = require('../config/sequelize');
 
 /**
@@ -83,12 +86,11 @@ class UserService {
             throw new Error('Invalid email or password');
         }
         
-        // Generate JWT token
-        const token = jwt.sign(
-            { id: user.user_id },
-            process.env.JWT_SECRET,
-            { expiresIn: process.env.JWT_EXPIRATION || '24h' }
-        );
+        // Generate access token (JWT)
+        const accessToken = this.generateAccessToken(user.user_id);
+        
+        // Generate refresh token
+        const refreshToken = await this.generateRefreshToken(user.user_id, req);
         
         // Remove password from response
         const userResponse = user.toJSON();
@@ -96,7 +98,10 @@ class UserService {
         
         return {
             user: userResponse,
-            token
+            accessToken,
+            refreshToken: refreshToken.token,
+            tokenType: 'Bearer',
+            expiresIn: process.env.JWT_EXPIRATION || '24h'
         };
     }
     
@@ -241,17 +246,133 @@ class UserService {
      * @param {string} token - JWT token
      * @returns {Promise<Object>} - Decoded token
      */
-    verifyToken(token) {
-        return new Promise((resolve, reject) => {
-            jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key', (err, decoded) => {
-                if (err) {
-                    return reject(err);
-                }
-                
-                resolve(decoded);
-            });
-        });
+    async verifyToken(token) {
+        try {
+            const decoded = jwt.verify(token, process.env.JWT_SECRET);
+            return decoded;
+        } catch (error) {
+            throw new Error('Invalid token');
+        }
     }
+    
+    /**
+     * Generate a new access token
+     * @param {number} userId - User ID
+     * @returns {string} - JWT access token
+     */
+    generateAccessToken(userId) {
+        return jwt.sign(
+            { id: userId },
+            process.env.JWT_SECRET,
+            { expiresIn: process.env.JWT_EXPIRATION || '24h' }
+        );
+    }
+    
+    /**
+     * Generate a new refresh token
+     * @param {number} userId - User ID
+     * @param {Object} req - Express request object (for IP and user agent)
+     * @returns {Promise<Object>} - Refresh token object
+     */
+    async generateRefreshToken(userId, req = null) {
+        // Generate a random token
+        const refreshToken = crypto.randomBytes(40).toString('hex');
+        
+        // Set expiration date (30 days)
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + 30);
+        
+        // Get IP and user agent if available
+        const ipAddress = req ? (req.ip || req.headers['x-forwarded-for'] || '') : null;
+        const userAgent = req ? (req.headers['user-agent'] || '') : null;
+        
+        // Create refresh token in database
+        const token = await RefreshToken.create({
+            user_id: userId,
+            token: refreshToken,
+            expires_at: expiresAt,
+            ip_address: ipAddress,
+            user_agent: userAgent
+        });
+        
+        return token;
+    }
+    
+    /**
+     * Refresh access token using refresh token
+     * @param {string} refreshToken - Refresh token
+     * @param {Object} req - Express request object
+     * @returns {Promise<Object>} - New tokens
+     */
+    async refreshToken(refreshToken, req) {
+        try {
+            // Find the refresh token in the database
+            const tokenDoc = await RefreshToken.findOne({
+                where: { token: refreshToken }
+            });
+            
+            // Check if token exists and is valid
+            if (!tokenDoc) {
+                throw new Error('Invalid refresh token');
+            }
+            
+            // Check if token is expired
+            if (tokenDoc.isExpired()) {
+                throw new Error('Refresh token expired');
+            }
+            
+            // Check if token is revoked
+            if (tokenDoc.is_revoked) {
+                throw new Error('Refresh token revoked');
+            }
+            
+            // Get user
+            const user = await User.findByPk(tokenDoc.user_id);
+            
+            if (!user) {
+                throw new Error('User not found');
+            }
+            
+            // Generate new access token
+            const accessToken = this.generateAccessToken(user.user_id);
+            
+            // Generate new refresh token
+            const newRefreshToken = await this.generateRefreshToken(user.user_id, req);
+            
+            // Revoke old refresh token
+            await tokenDoc.update({ is_revoked: true });
+            
+            return {
+                accessToken,
+                refreshToken: newRefreshToken.token,
+                tokenType: 'Bearer',
+                expiresIn: process.env.JWT_EXPIRATION || '24h'
+            };
+        } catch (error) {
+            console.error('Error refreshing token:', error);
+            throw error;
+        }
+    }
+    
+    /**
+     * Revoke all refresh tokens for a user
+     * @param {number} userId - User ID
+     * @returns {Promise<number>} - Number of tokens revoked
+     */
+    async revokeAllTokens(userId) {
+        try {
+            const result = await RefreshToken.update(
+                { is_revoked: true },
+                { where: { user_id: userId, is_revoked: false } }
+            );
+            
+            return result[0]; // Number of rows affected
+        } catch (error) {
+            console.error('Error revoking tokens:', error);
+            throw error;
+        }
+    }
+
 }
 
 // Create a singleton instance

@@ -16,12 +16,17 @@ const WatchHistory = require('./WatchHistory').WatchHistory;
 const WatchList = require('./WatchList');
 const Subtitle = require('./Subtitle');
 const ViewingClassification = require('./ViewingClassification');
+const RefreshToken = require('./RefreshToken');
 
 // User associations
 User.hasMany(Profile, { foreignKey: 'user_id' });
 User.hasOne(Subscription, { foreignKey: 'user_id' });
 User.hasMany(User, { as: 'ReferredUsers', foreignKey: 'referral_id' });
 User.belongsTo(User, { as: 'Referrer', foreignKey: 'referral_id' });
+User.hasMany(RefreshToken, { foreignKey: 'user_id' });
+
+// RefreshToken associations
+RefreshToken.belongsTo(User, { foreignKey: 'user_id' });
 
 // Profile associations
 Profile.belongsTo(User, { foreignKey: 'user_id' });
@@ -87,5 +92,6 @@ module.exports = {
     WatchHistory,
     WatchList,
     Subtitle,
-    ViewingClassification
+    ViewingClassification,
+    RefreshToken
 };

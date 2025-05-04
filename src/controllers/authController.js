@@ -4,6 +4,7 @@ const { userService } = require('../services');
 /**
  * Controller for handling authentication operations
  * Extends BaseController to inherit common functionality
+ * Implements role-based access control and token refresh
  */
 class AuthController extends BaseController {
     /**
@@ -71,23 +72,13 @@ class AuthController extends BaseController {
             }
 
             try {
-                const result = await userService.loginUser(email, password);
+                const result = await userService.loginUser(email, password, req);
                 
-                return this.handleSuccess(req, res, 200, {
-                    message: "Login successful",
-                    token: result.token,
-                    user: result.user
-                });
+                return this.handleSuccess(req, res, 200, result);
             } catch (error) {
                 // Handle specific login errors
-                if (error.message === 'Invalid email or password') {
+                if (error.message === 'Invalid email or password' || error.message === 'Account is not active') {
                     return this.handleError(req, res, 401, error.message);
-                } else if (error.message === 'Account is not active') {
-                    return this.handleError(req, res, 403, error.message);
-                } else if (error.message && error.message.includes('locked')) {
-                    return this.handleError(req, res, 423, "Account is locked. Please try again later.");
-                } else if (error.message === 'Account is suspended') {
-                    return this.handleError(req, res, 403, error.message);
                 }
                 
                 throw error; // Re-throw for general error handling
@@ -101,12 +92,64 @@ class AuthController extends BaseController {
     /**
      * Validate email format
      * @param {string} email - Email to validate
-     * @returns {boolean} - Whether the email is valid
-     * @private
+     * @returns {boolean} - True if email is valid
      */
     isValidEmail(email) {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         return emailRegex.test(email);
+    }
+
+    /**
+     * Refresh access token using refresh token
+     * @param {Object} req - Express request object
+     * @param {Object} res - Express response object
+     */
+    async refreshToken(req, res) {
+        try {
+            const { refreshToken } = req.body;
+            
+            if (!refreshToken) {
+                return this.handleError(req, res, 400, "Refresh token is required.");
+            }
+            
+            const result = await userService.refreshToken(refreshToken, req);
+            
+            return this.handleSuccess(req, res, 200, result);
+        } catch (error) {
+            console.error("Error refreshing token:", error);
+            
+            if (error.message.includes('refresh token')) {
+                return this.handleError(req, res, 401, error.message);
+            }
+            
+            return this.handleError(req, res, 500, "Internal server error", error.message);
+        }
+    }
+
+    /**
+     * Logout user by revoking refresh tokens
+     * @param {Object} req - Express request object
+     * @param {Object} res - Express response object
+     */
+    async logout(req, res) {
+        try {
+            const userId = req.userId; // Set by isLoggedIn middleware
+            
+            if (!userId) {
+                return this.handleError(req, res, 401, "Authentication required.");
+            }
+            
+            // Revoke all refresh tokens for the user
+            const tokensRevoked = await userService.revokeAllTokens(userId);
+            
+            return this.handleSuccess(req, res, 200, { 
+                message: "Logged out successfully",
+                tokensRevoked
+            });
+        } catch (error) {
+            console.error("Error during logout:", error);
+            return this.handleError(req, res, 500, "Internal server error", error.message);
+        }
     }
 }
 

@@ -2,6 +2,7 @@ const { DataTypes } = require("sequelize");
 const sequelize = require("../config/sequelize");
 const BaseModel = require("./BaseModel");
 const UserStatus = require("./enums/UserStatus");
+const UserRole = require("./enums/UserRole");
 
 class User extends BaseModel {
     /**
@@ -20,6 +21,24 @@ class User extends BaseModel {
         return this.activation_status === UserStatus.SUSPENDED && 
             this.locked_until && 
             new Date() < this.locked_until;
+    }
+    
+    /**
+     * Check if user has a specific role
+     * @param {string} role - Role to check
+     * @returns {boolean} True if user has the role
+     */
+    hasRole(role) {
+        return this.role === role;
+    }
+    
+    /**
+     * Check if user has permission for a required role level
+     * @param {string} requiredRole - Required role level
+     * @returns {boolean} True if user has sufficient permissions
+     */
+    hasPermission(requiredRole) {
+        return UserRole.hasPermission(this.role, requiredRole);
     }
 
     /**
@@ -83,6 +102,16 @@ User.initialize(
 		trial_available: {
 			type: DataTypes.BOOLEAN,
 			defaultValue: true,
+		},
+		role: {
+			type: DataTypes.STRING,
+			defaultValue: UserRole.USER,
+			validate: {
+				isIn: {
+					args: [UserRole.getAllValues()],
+					msg: "Invalid user role"
+				}
+			}
 		},
 	},
 	{
