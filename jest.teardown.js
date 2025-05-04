@@ -13,11 +13,17 @@ module.exports = async () => {
     console.log('Closing integration test server...');
     closePromises.push(
       new Promise((resolve) => {
-        global.__test_server__.close(() => {
-          console.log('Integration test server closed successfully');
+        try {
+          global.__test_server__.close(() => {
+            console.log('Integration test server closed successfully');
+            global.__test_server__ = null;
+            resolve();
+          });
+        } catch (err) {
+          console.error('Error closing integration test server:', err.message);
           global.__test_server__ = null;
           resolve();
-        });
+        }
       })
     );
   }
@@ -27,11 +33,17 @@ module.exports = async () => {
     console.log('Closing E2E test server...');
     closePromises.push(
       new Promise((resolve) => {
-        global.__e2e_test_server__.close(() => {
-          console.log('E2E test server closed successfully');
+        try {
+          global.__e2e_test_server__.close(() => {
+            console.log('E2E test server closed successfully');
+            global.__e2e_test_server__ = null;
+            resolve();
+          });
+        } catch (err) {
+          console.error('Error closing E2E test server:', err.message);
           global.__e2e_test_server__ = null;
           resolve();
-        });
+        }
       })
     );
   }
@@ -41,11 +53,17 @@ module.exports = async () => {
     console.log('Closing profile test server...');
     closePromises.push(
       new Promise((resolve) => {
-        global.__profile_test_server__.close(() => {
-          console.log('Profile test server closed successfully');
+        try {
+          global.__profile_test_server__.close(() => {
+            console.log('Profile test server closed successfully');
+            global.__profile_test_server__ = null;
+            resolve();
+          });
+        } catch (err) {
+          console.error('Error closing profile test server:', err.message);
           global.__profile_test_server__ = null;
           resolve();
-        });
+        }
       })
     );
   }
@@ -54,11 +72,17 @@ module.exports = async () => {
     console.log('Closing watchlist test server...');
     closePromises.push(
       new Promise((resolve) => {
-        global.__watchlist_test_server__.close(() => {
-          console.log('Watchlist test server closed successfully');
+        try {
+          global.__watchlist_test_server__.close(() => {
+            console.log('Watchlist test server closed successfully');
+            global.__watchlist_test_server__ = null;
+            resolve();
+          });
+        } catch (err) {
+          console.error('Error closing watchlist test server:', err.message);
           global.__watchlist_test_server__ = null;
           resolve();
-        });
+        }
       })
     );
   }
@@ -69,5 +93,22 @@ module.exports = async () => {
   // Add some delay to ensure connections are properly closed
   console.log('Waiting for connections to fully close...');
   await new Promise(resolve => setTimeout(resolve, 1000));
+  
+  // Force cleanup of any remaining handles
+  const activeHandles = process._getActiveHandles();
+  console.log(`Remaining active handles: ${activeHandles.length}`);
+  
+  // Try to close any remaining server handles
+  activeHandles.forEach(handle => {
+    if (handle && typeof handle.close === 'function' && handle._handle && handle._handle.hasRef) {
+      try {
+        handle.close();
+        console.log('Closed a remaining handle');
+      } catch (err) {
+        console.error('Error closing handle:', err.message);
+      }
+    }
+  });
+  
   console.log('Global teardown completed successfully');
 };

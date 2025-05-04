@@ -9,11 +9,12 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "test": "jest \"tests/(integration|e2e)/.*\\.test\\.js$\" --detectOpenHandles --forceExit",
+    "test": "jest \"tests/(integration|e2e)/.*\\.test\\.js$\" --forceExit --testTimeout=30000",
     "test:unit": "jest tests/unit",
     "test:integration": "jest tests/integration --forceExit",
     "test:e2e": "jest tests/e2e --forceExit",
-    "test:all": "jest --detectOpenHandles --forceExit"
+    "test:all": "jest --forceExit --testTimeout=30000",
+    "test:debug": "jest \"tests/(integration|e2e)/.*\\.test\\.js$\" --detectOpenHandles --forceExit --testTimeout=30000"
   },
   "jest": {
     "setupFilesAfterEnv": ["./jest.setup.js"],

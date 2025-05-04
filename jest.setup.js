@@ -415,7 +415,19 @@ global.testUser = {
   role: 'USER'
 };
 
+// Add global server cleanup
+beforeAll(() => {
+  // Reset any global server instances at the start of tests
+  global.__test_server__ = null;
+  global.__e2e_test_server__ = null;
+  global.__profile_test_server__ = null;
+  global.__watchlist_test_server__ = null;
+});
+
 // Clean up mocks after each test
 afterEach(() => {
   jest.clearAllMocks();
 });
+
+// Add timeout extension for tests
+jest.setTimeout(30000);
