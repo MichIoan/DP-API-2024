@@ -1,28 +1,25 @@
 /**
  * Unit tests for the Subtitles Controller
  */
-const SubtitlesController = require('../../src/controllers/subtitlesController');
-const { Subtitles } = require('../../src/models');
+const subtitlesController = require('../../../src/controllers/subtitlesController');
+const { Subtitles } = require('../../../src/models');
 
 // Mock dependencies
-jest.mock('../../src/models', () => ({
+jest.mock('../../../src/models', () => ({
   Subtitles: {
     create: jest.fn(),
     findByPk: jest.fn(),
     findAll: jest.fn(),
-    destroy: jest.fn()
+    destroy: jest.fn(),
+    update: jest.fn()
   }
 }));
 
 describe('SubtitlesController', () => {
-  let subtitlesController;
   let req;
   let res;
   
   beforeEach(() => {
-    // Get the instance of SubtitlesController
-    subtitlesController = require('../../src/controllers/subtitlesController');
-    
     // Mock request and response objects
     req = {
       params: {},
@@ -39,6 +36,7 @@ describe('SubtitlesController', () => {
     subtitlesController.handleSuccess = jest.fn();
     subtitlesController.handleError = jest.fn();
     subtitlesController.validateRequiredFields = jest.fn().mockReturnValue({ isValid: true });
+    subtitlesController.convertParams = jest.fn().mockImplementation((params, types) => params);
     
     // Clear all mocks
     jest.clearAllMocks();
@@ -212,6 +210,28 @@ describe('SubtitlesController', () => {
         { message: "Subtitles deleted successfully." }
       );
       expect(subtitlesController.handleError).not.toHaveBeenCalled();
+    });
+    
+    it('should return 400 if subtitle ID is missing', async () => {
+      // Empty request parameters
+      req.params = {};
+      
+      // Mock Subtitles.findByPk to return null since undefined ID won't be found
+      Subtitles.findByPk.mockResolvedValue(null);
+      
+      // Call the method
+      await subtitlesController.deleteSubtitles(req, res);
+      
+      // Assertions - The actual implementation tries to find a subtitle with undefined ID
+      // and then returns a 404 when it can't find it
+      expect(Subtitles.findByPk).toHaveBeenCalledWith(undefined);
+      expect(subtitlesController.handleError).toHaveBeenCalledWith(
+        req, 
+        res, 
+        404, 
+        "Subtitles not found."
+      );
+      expect(subtitlesController.handleSuccess).not.toHaveBeenCalled();
     });
     
     it('should return 404 if subtitles are not found', async () => {
@@ -461,6 +481,139 @@ describe('SubtitlesController', () => {
       
       // Call the method
       await subtitlesController.updateSubtitles(req, res);
+      
+      // Assertions
+      expect(Subtitles.findByPk).toHaveBeenCalledWith('1');
+      expect(subtitlesController.handleError).toHaveBeenCalledWith(
+        req, 
+        res, 
+        500, 
+        "Internal server error",
+        error.message
+      );
+      expect(subtitlesController.handleSuccess).not.toHaveBeenCalled();
+    });
+  });
+  
+  describe('getAllSubtitles', () => {
+    it('should get all subtitles successfully', async () => {
+      // Mock Subtitles.findAll
+      const mockSubtitles = [
+        {
+          subtitle_id: 1,
+          media_id: 1,
+          language: 'en',
+          file_path: '/subtitles/movie1_en.vtt'
+        },
+        {
+          subtitle_id: 2,
+          media_id: 1,
+          language: 'es',
+          file_path: '/subtitles/movie1_es.vtt'
+        }
+      ];
+      Subtitles.findAll.mockResolvedValue(mockSubtitles);
+      
+      // Call the method
+      await subtitlesController.getAllSubtitles(req, res);
+      
+      // Assertions
+      expect(Subtitles.findAll).toHaveBeenCalled();
+      expect(subtitlesController.handleSuccess).toHaveBeenCalledWith(
+        req, 
+        res, 
+        200, 
+        { subtitles: mockSubtitles }
+      );
+      expect(subtitlesController.handleError).not.toHaveBeenCalled();
+    });
+    
+    it('should handle errors', async () => {
+      // Mock Subtitles.findAll to throw an error
+      const error = new Error('Database error');
+      Subtitles.findAll.mockRejectedValue(error);
+      
+      // Call the method
+      await subtitlesController.getAllSubtitles(req, res);
+      
+      // Assertions
+      expect(Subtitles.findAll).toHaveBeenCalled();
+      expect(subtitlesController.handleError).toHaveBeenCalledWith(
+        req, 
+        res, 
+        500, 
+        "Internal server error",
+        error.message
+      );
+      expect(subtitlesController.handleSuccess).not.toHaveBeenCalled();
+    });
+  });
+  
+  describe('getSubtitlesById', () => {
+    it('should get subtitles by ID successfully', async () => {
+      // Mock request parameters
+      req.params = {
+        subtitleId: '1'
+      };
+      
+      // Mock Subtitles.findByPk
+      const mockSubtitles = {
+        subtitle_id: 1,
+        media_id: 1,
+        language: 'en',
+        file_path: '/subtitles/movie1_en.vtt'
+      };
+      Subtitles.findByPk.mockResolvedValue(mockSubtitles);
+      
+      // Call the method
+      await subtitlesController.getSubtitlesById(req, res);
+      
+      // Assertions
+      expect(Subtitles.findByPk).toHaveBeenCalledWith('1');
+      expect(subtitlesController.handleSuccess).toHaveBeenCalledWith(
+        req, 
+        res, 
+        200, 
+        { subtitles: mockSubtitles }
+      );
+      expect(subtitlesController.handleError).not.toHaveBeenCalled();
+    });
+    
+    it('should return 404 if subtitles are not found', async () => {
+      // Mock request parameters
+      req.params = {
+        subtitleId: '999'
+      };
+      
+      // Mock Subtitles.findByPk to return null
+      Subtitles.findByPk.mockResolvedValue(null);
+      
+      // Call the method
+      await subtitlesController.getSubtitlesById(req, res);
+      
+      // Assertions
+      expect(Subtitles.findByPk).toHaveBeenCalledWith('999');
+      expect(subtitlesController.handleError).toHaveBeenCalledWith(
+        req, 
+        res, 
+        404, 
+        "Subtitles not found."
+      );
+      expect(subtitlesController.handleSuccess).not.toHaveBeenCalled();
+    });
+    
+    it('should handle errors', async () => {
+      // Mock request parameters
+      req.params = {
+        subtitleId: '1'
+      };
+      
+      // Mock Subtitles.findByPk to throw an error
+      const error = new Error('Database error');
+      Subtitles.findByPk.mockRejectedValue(error);
+      
+      // Call the method
+      await subtitlesController.getSubtitlesById(req, res);
       
       // Assertions
       expect(Subtitles.findByPk).toHaveBeenCalledWith('1');

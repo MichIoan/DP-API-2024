@@ -1,11 +1,11 @@
 /**
  * Unit tests for the Media Controller
  */
-const mediaController = require('../../src/controllers/mediaController');
-const mediaService = require('../../src/services/mediaService');
+const mediaController = require('../../../src/controllers/mediaController');
+const mediaService = require('../../../src/services/mediaService');
 
 // Mock dependencies
-jest.mock('../../src/services/mediaService', () => ({
+jest.mock('../../../src/services/mediaService', () => ({
   getAllMedia: jest.fn(),
   getMediaById: jest.fn(),
   searchMedia: jest.fn(),
@@ -18,7 +18,7 @@ jest.mock('../../src/services/mediaService', () => ({
   removeFromHistory: jest.fn()
 }));
 
-jest.mock('../../src/models/Profile', () => ({
+jest.mock('../../../src/models/Profile', () => ({
   Profile: {
     findOne: jest.fn()
   }
@@ -27,7 +27,7 @@ jest.mock('../../src/models/Profile', () => ({
 describe('MediaController', () => {
   let req;
   let res;
-  const { Profile } = require('../../src/models/Profile');
+  const { Profile } = require('../../../src/models/Profile');
   
   beforeEach(() => {
     // Mock request and response objects

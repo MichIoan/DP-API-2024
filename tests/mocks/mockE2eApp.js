@@ -736,14 +736,18 @@ app.use('/admin', adminRouter);
 // Create a server that can be closed after tests
 let server;
 const startServer = () => {
-  // If there's already a global server instance, return it
-  if (global.__e2e_test_server__) {
-    return global.__e2e_test_server__;
-  }
-  
-  // Create a new server instance
   const port = process.env.E2E_TEST_PORT || 3002;
   try {
+    // Check if server is already running
+    if (server && server.listening) {
+      return server;
+    }
+    
+    // Close any existing server
+    if (server) {
+      server.close();
+    }
+    
     server = app.listen(port);
     
     // Store the server instance globally
@@ -781,10 +785,16 @@ const closeServer = () => {
     }
     
     try {
+      // Force close all connections
       server.close(() => {
+        // Explicitly set to null to help with garbage collection
         server = null;
         global.__e2e_test_server__ = null;
-        resolve();
+        
+        // Add a small delay to ensure connections are fully closed
+        setTimeout(() => {
+          resolve();
+        }, 100);
       });
     } catch (err) {
       console.error('Error closing E2E server:', err.message);

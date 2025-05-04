@@ -48,6 +48,26 @@ module.exports = async () => {
     );
   }
   
+  // Close watchlist test server if it exists
+  if (global.__watchlist_test_server__) {
+    console.log('Closing watchlist test server...');
+    closePromises.push(
+      new Promise((resolve) => {
+        try {
+          global.__watchlist_test_server__.close(() => {
+            console.log('Watchlist test server closed successfully');
+            global.__watchlist_test_server__ = null;
+            resolve();
+          });
+        } catch (err) {
+          console.error('Error closing watchlist test server:', err.message);
+          global.__watchlist_test_server__ = null;
+          resolve();
+        }
+      })
+    );
+  }
+  
   // Close any other server instances that might be created during tests
   if (global.__profile_test_server__) {
     console.log('Closing profile test server...');
@@ -68,47 +88,32 @@ module.exports = async () => {
     );
   }
   
-  if (global.__watchlist_test_server__) {
-    console.log('Closing watchlist test server...');
-    closePromises.push(
-      new Promise((resolve) => {
-        try {
-          global.__watchlist_test_server__.close(() => {
-            console.log('Watchlist test server closed successfully');
-            global.__watchlist_test_server__ = null;
-            resolve();
-          });
-        } catch (err) {
-          console.error('Error closing watchlist test server:', err.message);
-          global.__watchlist_test_server__ = null;
-          resolve();
-        }
-      })
-    );
+  // Wait for all servers to close
+  if (closePromises.length > 0) {
+    console.log('Waiting for connections to fully close...');
+    await Promise.all(closePromises);
   }
   
-  // Wait for all servers to close
-  await Promise.all(closePromises);
-  
-  // Add some delay to ensure connections are properly closed
-  console.log('Waiting for connections to fully close...');
-  await new Promise(resolve => setTimeout(resolve, 1000));
-  
-  // Force cleanup of any remaining handles
+  // Check for remaining handles
   const activeHandles = process._getActiveHandles();
-  console.log(`Remaining active handles: ${activeHandles.length}`);
-  
-  // Try to close any remaining server handles
-  activeHandles.forEach(handle => {
-    if (handle && typeof handle.close === 'function' && handle._handle && handle._handle.hasRef) {
-      try {
-        handle.close();
-        console.log('Closed a remaining handle');
-      } catch (err) {
-        console.error('Error closing handle:', err.message);
+  if (activeHandles.length > 0) {
+    console.log(`Remaining active handles: ${activeHandles.length}`);
+    
+    // Force close any remaining handles
+    for (const handle of activeHandles) {
+      if (handle && typeof handle.close === 'function') {
+        try {
+          handle.close();
+          console.log('Closed a remaining handle');
+        } catch (err) {
+          console.error('Failed to close handle:', err.message);
+        }
       }
     }
-  });
+  }
+  
+  // Add a small delay to ensure all resources are released
+  await new Promise(resolve => setTimeout(resolve, 500));
   
   console.log('Global teardown completed successfully');
 };

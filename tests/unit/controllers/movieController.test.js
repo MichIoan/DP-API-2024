@@ -1,11 +1,11 @@
 /**
  * Unit tests for the Movie Controller
  */
-const movieController = require('../../src/controllers/movieController');
-const mediaService = require('../../src/services/mediaService');
+const movieController = require('../../../src/controllers/movieController');
+const mediaService = require('../../../src/services/mediaService');
 
 // Mock dependencies
-jest.mock('../../src/services/mediaService');
+jest.mock('../../../src/services/mediaService');
 
 describe('MovieController', () => {
   let req;
