@@ -64,9 +64,10 @@ class UserService {
      * Login a user
      * @param {string} email - User email
      * @param {string} password - User password
+     * @param {Object} req - Express request object (for IP and user agent)
      * @returns {Promise<Object>} - User data and token
      */
-    async loginUser(email, password) {
+    async loginUser(email, password, req = null) {
         // Find user
         const user = await User.findOne({ where: { email } });
         
@@ -366,7 +367,8 @@ class UserService {
                 { where: { user_id: userId, is_revoked: false } }
             );
             
-            return result[0]; // Number of rows affected
+            // Handle case when result is undefined or not an array
+            return Array.isArray(result) ? result[0] : 0; // Number of rows affected
         } catch (error) {
             console.error('Error revoking tokens:', error);
             throw error;
