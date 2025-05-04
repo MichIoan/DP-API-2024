@@ -15,7 +15,7 @@ const swaggerSpecs = require("./src/config/swagger");
 // Load model associations
 require("./src/models/associations");
 
-const port = process.env.PORT || 8081;
+const port = process.env.PORT || 8083;
 
 const app = express();
 app.use(helmet());
