@@ -1,6 +1,7 @@
 /**
  * End-to-End tests for the Netflix API
  * Tests complete user flows from registration to content access
+ * NOTE: These tests are skipped until proper test database setup is configured
  */
 const request = require('supertest');
 const { app, startServer, closeServer } = require('../mocks/mockE2eApp'); // Use our mock E2E app
