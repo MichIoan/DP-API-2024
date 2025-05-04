@@ -2,35 +2,88 @@
 
 Dataprocessing API 2024
 
-INSTRUCTIONS
+## Prerequisites
 
-    Database
-    Node/Express & env
+- **PostgreSQL** (recommended version 16)
+- **Node.js** (v14 or higher)
+- **npm** (v6 or higher)
 
-DATABASE
+## Setup Instructions
 
-To run the api, first of all you will need PostgreSQL installed on your computer. We recommend version 16.
+### Database Setup
 
-During the installation you will be required to set a password for the 'postgres' user. We recommend to use the password 'root'.
+1. **Install PostgreSQL**
+   - During installation, set a password for the 'postgres' user
+   - Restart your computer after installation
 
-After you've installed PostgreSQL, restart the computer.
+2. **Create a Database**
+   ```bash
+   # Log in to PostgreSQL
+   psql -U postgres
+   
+   # Create a new database
+   CREATE DATABASE <database_name>;
+   
+   # Exit psql
+   \q
+   ```
+   Replace `<database_name>` with the name of your database.
 
-Now you will need to create a database before importing the sql file.
+3. **Import Database Schema**
+   ```bash
+   # Import the SQL file
+   psql -U postgres -d <database_name> -f <path_to_sql_file>
+   ```
+   Replace `<path_to_sql_file>` with the path to the SQL file in the project.
 
-Log in the psql with the command: "psql -U postgres" and with the password you've set during the installation.
+### API Setup
 
-After logging in, use the "CREATE DATABASE <database_name>". Replace database_name with whatever you'd like.
+1. **Install Dependencies**
+   ```bash
+   # Navigate to the project directory in a terminal or if you have the option to open the folder with your IDE:
+   cd path/to/project
+   
+   # Install required packages
+   npm install
+   ```
 
-After creating the database, use "\q" to quit the psql.
+2. **Environment Configuration**
+   - Copy the example environment file to create your own either by command or manually:
+   ```bash
+   cp .env.example .env
+   ```
+   - Open the `.env` file and update the values as needed, especially:
+     - Database credentials
+     - JWT secret key
+     - API URLs
 
-Try to import the sql file with the command "psql -U -d <database_name> -f <path_to_sql_file>" in the command-line.
+## Running the API
 
-Replace with postgres, database_name with the database_name you've just created, and, at last, the path to the sql file.
+1. **Start the Server**
+   ```bash
+   npm start
+   ```
+   The API will be available at `http://localhost:<port>`
 
-NODE/EXPRESS & ENV
+   <port> is the port you specified in your `.env` file
 
-Open a command-line in the folder with the app.js, run the command "npm i" to install the necessary modules for the API.
+2. **Run in Development Mode** (with auto-reload)
+   ```bash
+   npm run dev
+   ```
 
-After that, create a .env file with the next structure: JWT_KEY='' PORT = 8081 db_name = '' db_username = '' db_password = '' db_host ='localhost' db_dialect = 'postgres'
+## Testing
 
-YOU ALSO NEED TO SET A JWT_KEY, db_name db_username db_password IN .ENV FILE.
+Run the tests with:
+```bash
+npm test
+```
+
+For test coverage report:
+```bash
+npm test -- --coverage
+```
+
+## API Documentation
+
+API documentation is available in the `/docs` directory or by accessing the `/api-docs` endpoint when the server is running.
