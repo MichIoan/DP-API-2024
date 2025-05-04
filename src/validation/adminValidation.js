@@ -16,9 +16,9 @@ const updateUserRoleSchema = {
             })
     }),
     body: Joi.object({
-        role: Joi.string().valid(...Object.values(UserRole.ROLES)).required()
+        role: Joi.string().valid(...UserRole.getAllValues()).required()
             .messages({
-                'any.only': `Role must be one of: ${Object.values(UserRole.ROLES).join(', ')}`,
+                'any.only': `Role must be one of: ${UserRole.getAllValues().join(', ')}`,
                 'any.required': 'Role is required'
             })
     })

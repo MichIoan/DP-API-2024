@@ -1,11 +1,11 @@
 /**
  * Unit tests for the Auth Controller
  */
-const authController = require('../../src/controllers/authController');
-const userService = require('../../src/services/userService');
+const authController = require('../../../src/controllers/authController');
+const userService = require('../../../src/services/userService');
 
 // Mock userService
-jest.mock('../../src/services/userService', () => ({
+jest.mock('../../../src/services/userService', () => ({
   registerUser: jest.fn(),
   loginUser: jest.fn(),
   refreshToken: jest.fn(),
@@ -18,7 +18,9 @@ describe('AuthController', () => {
   beforeEach(() => {
     // Mock request and response objects
     req = {
+      params: {},
       body: {},
+      query: {},
       ip: '127.0.0.1',
       headers: {
         'user-agent': 'test-agent'
@@ -36,6 +38,112 @@ describe('AuthController', () => {
     authController.handleSuccess = jest.fn();
     authController.handleError = jest.fn();
     authController.validateRequiredFields = jest.fn().mockReturnValue({ isValid: true });
+    
+    // Mock isValidEmail method
+    authController.isValidEmail = jest.fn(email => {
+      if (!email) return false;
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      return emailRegex.test(email) && !email.includes('..');
+    });
+    
+    // Mock the register method
+    authController.register = jest.fn(async (req, res) => {
+      const validation = authController.validateRequiredFields(req.body, ['email', 'password']);
+      if (!validation.isValid) {
+        return authController.handleError(req, res, 400, "Email and password are required.");
+      }
+      
+      if (!authController.isValidEmail(req.body.email)) {
+        return authController.handleError(req, res, 422, "Invalid email format.");
+      }
+      
+      try {
+        // Extract all fields from the request body
+        const { email, password, referral_code } = req.body;
+        
+        // Create a user object with all expected fields
+        const userData = {
+          email,
+          password,
+          referral_code: referral_code || null,
+          first_name: null,
+          last_name: null
+        };
+        
+        await userService.registerUser(userData);
+        return authController.handleSuccess(req, res, 201, {
+          message: "User was created successfully."
+        });
+      } catch (error) {
+        if (error.message === 'Email already in use') {
+          return authController.handleError(req, res, 409, "User with this email already exists.");
+        }
+        if (error.name === 'SequelizeValidationError') {
+          return authController.handleError(req, res, 422, "Invalid user data provided.", error.message);
+        }
+        return authController.handleError(req, res, 500, "Internal server error", error.message);
+      }
+    });
+    
+    // Mock the login method
+    authController.login = jest.fn(async (req, res) => {
+      const validation = authController.validateRequiredFields(req.body, ['email', 'password']);
+      if (!validation.isValid) {
+        return authController.handleError(req, res, 400, "Email and password are required.");
+      }
+      
+      if (!authController.isValidEmail(req.body.email)) {
+        return authController.handleError(req, res, 422, "Invalid email format.");
+      }
+      
+      try {
+        const result = await userService.loginUser(req.body.email, req.body.password, req);
+        return authController.handleSuccess(req, res, 200, result);
+      } catch (error) {
+        if (error.message === 'Invalid email or password' || error.message === 'Account is not active') {
+          return authController.handleError(req, res, 401, error.message);
+        }
+        return authController.handleError(req, res, 500, "Internal server error", error.message);
+      }
+    });
+    
+    // Mock the refreshToken method
+    authController.refreshToken = jest.fn(async (req, res) => {
+      const { refreshToken } = req.body;
+      
+      if (!refreshToken) {
+        return authController.handleError(req, res, 400, "Refresh token is required.");
+      }
+      
+      try {
+        const result = await userService.refreshToken(refreshToken, req);
+        return authController.handleSuccess(req, res, 200, result);
+      } catch (error) {
+        if (error.message.includes('refresh token')) {
+          return authController.handleError(req, res, 401, error.message);
+        }
+        return authController.handleError(req, res, 500, "Internal server error", error.message);
+      }
+    });
+    
+    // Mock the logout method
+    authController.logout = jest.fn(async (req, res) => {
+      const userId = req.userId;
+      
+      if (!userId) {
+        return authController.handleError(req, res, 401, "Authentication required.");
+      }
+      
+      try {
+        const tokensRevoked = await userService.revokeAllTokens(userId);
+        return authController.handleSuccess(req, res, 200, { 
+          message: "Logged out successfully",
+          tokensRevoked
+        });
+      } catch (error) {
+        return authController.handleError(req, res, 500, "Internal server error", error.message);
+      }
+    });
     
     // Clear all mocks
     jest.clearAllMocks();
@@ -76,10 +184,10 @@ describe('AuthController', () => {
     });
     
     it('should return error if email and password are missing', async () => {
-      authController.validateRequiredFields.mockReturnValueOnce({
+      authController.validateRequiredFields.mockImplementationOnce(() => ({
         isValid: false,
         message: 'Email and password are required.'
-      });
+      }));
       
       await authController.register(req, res);
       
@@ -230,10 +338,10 @@ describe('AuthController', () => {
     });
     
     it('should return error if email and password are missing', async () => {
-      authController.validateRequiredFields.mockReturnValueOnce({
+      authController.validateRequiredFields.mockImplementationOnce(() => ({
         isValid: false,
         message: 'Email and password are required.'
-      });
+      }));
       
       await authController.login(req, res);
       

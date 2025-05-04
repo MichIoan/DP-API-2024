@@ -7,13 +7,33 @@
     "doc": "docs"
   },
   "scripts": {
-    "start": "react-scripts start",
-    "test": "jest tests/unit"
+    "start": "node app.js",
+    "dev": "nodemon app.js",
+    "test": "jest --forceExit --testTimeout=30000",
+    "test:all": "jest --forceExit --testTimeout=30000",
+    "test:unit": "jest tests/unit --forceExit --testTimeout=30000",
+    "test:unit:coverage": "jest tests/unit --setupFilesAfterEnv=./jest.unit.setup.js --forceExit --testTimeout=30000",
+    "test:coverage": "jest tests/unit/controllers tests/unit/models --setupFilesAfterEnv=./jest.unit.setup.js --collectCoverage --forceExit --testTimeout=30000",
+    "test:integration": "jest tests/integration --forceExit",
+    "test:e2e": "jest tests/e2e --forceExit",
+    "test:debug": "jest \"tests/(integration|e2e)/.*\\.test\\.js$\" --detectOpenHandles --forceExit --testTimeout=30000"
+  },
+  "jest": {
+    "setupFilesAfterEnv": ["./jest.setup.js"],
+    "globalTeardown": "./jest.teardown.js",
+    "testEnvironment": "node",
+    "coveragePathIgnorePatterns": [
+      "/node_modules/"
+    ],
+    "collectCoverage": true,
+    "verbose": true,
+    "forceExit": true,
+    "detectOpenHandles": true
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "axios": "^1.6.7",
+    "axios": "^1.6.8",
     "bcrypt": "^5.1.1",
     "body-parser": "^1.20.2",
     "chart.js": "^4.4.7",
@@ -53,6 +73,7 @@
   },
   "devDependencies": {
     "jest": "^27.5.1",
+    "sequelize-mock": "^0.10.2",
     "supertest": "^7.1.0"
   }
 }

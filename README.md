@@ -13,10 +13,22 @@ Dataprocessing API 2024
 ### Database Setup
 
 1. **Install PostgreSQL**
+   - Download PostgreSQL from [the official website](https://www.postgresql.org/download/)
    - During installation, set a password for the 'postgres' user
+   - Make note of the port (default is 5432)
    - Restart your computer after installation
 
-2. **Create a Database**
+2. **Start PostgreSQL Service**
+   - **Windows**: 
+     - Open Services (Run → services.msc)
+     - Find "PostgreSQL" service and ensure it's running
+     - Or run: `net START postgresql-x64-16` in Command Prompt as Administrator
+   - **macOS**: 
+     - Run: `brew services start postgresql`
+   - **Linux**: 
+     - Run: `sudo service postgresql start` or `sudo systemctl start postgresql`
+
+3. **Create a Database**
    ```bash
    # Log in to PostgreSQL
    psql -U postgres
@@ -29,7 +41,7 @@ Dataprocessing API 2024
    ```
    Replace `<database_name>` with the name of your database.
 
-3. **Import Database Schema**
+4. **Import Database Schema**
    ```bash
    # Import the SQL file
    psql -U postgres -d <database_name> -f <path_to_sql_file>
@@ -87,3 +99,54 @@ npm test -- --coverage
 ## API Documentation
 
 API documentation is available in the `/docs` directory or by accessing the `/api-docs` endpoint when the server is running.
+
+## Troubleshooting
+
+### Database Connection Issues
+
+1. **PostgreSQL Service Not Running**
+   - Check if the PostgreSQL service is running using the commands in the "Start PostgreSQL Service" section.
+   - If it's not running, start it using the appropriate command for your OS.
+
+2. **Connection Refused Error**
+   - Verify PostgreSQL is running on the expected port (default 5432)
+   - Check your firewall settings to ensure the port is open
+   - Verify the DB_HOST and DB_PORT in your .env file
+
+3. **Authentication Failed**
+   - Double-check your DB_USER and DB_PASSWORD in the .env file
+   - Ensure the user has the necessary permissions
+
+4. **Database Does Not Exist**
+   - Verify you've created the database with the same name as in your DB_NAME setting
+   - Try connecting directly with psql to confirm the database exists
+
+5. **Schema Import Failed**
+   - Check if the SQL file path is correct
+   - Ensure you have the necessary permissions to read the file
+   - Try running the SQL commands manually in psql
+
+### API Startup Issues
+
+1. **Port Already in Use** (EADDRINUSE Error)
+   - Change the PORT value in your .env file to use a different port
+   - Or find and kill the process using the current port:
+     - **Windows**:
+       ```bash
+       # Find the process using port 8081 (or your configured port)
+       netstat -ano | findstr :8081
+       
+       # Kill the process using its PID (replace 1234 with the actual PID)
+       taskkill /F /PID 1234
+       ```
+     - **macOS/Linux**:
+       ```bash
+       # Find the process using port 8081 (or your configured port)
+       lsof -i :8081
+       
+       # Kill the process using its PID (replace 1234 with the actual PID)
+       kill -9 1234
+       ```
+
+2. **Missing Dependencies**
+   - Run `npm install` again to ensure all dependencies are installed
