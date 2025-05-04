@@ -9,11 +9,13 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "test": "jest \"tests/(integration|e2e)/.*\\.test\\.js$\" --forceExit --testTimeout=30000",
+    "test": "jest --forceExit --testTimeout=30000",
+    "test:all": "jest --forceExit --testTimeout=30000",
     "test:unit": "jest tests/unit",
+    "test:unit:coverage": "jest tests/unit --setupFilesAfterEnv=./jest.unit.setup.js --forceExit --testTimeout=30000",
+    "test:coverage": "jest tests/unit/BaseController.test.js tests/unit/roleAuth.test.js tests/unit/mediaController.test.js tests/unit/movieController.test.js tests/unit/profileController.test.js tests/unit/subscriptionController.test.js tests/unit/subtitlesController.test.js --setupFilesAfterEnv=./jest.unit.setup.js --collectCoverage --forceExit --testTimeout=30000",
     "test:integration": "jest tests/integration --forceExit",
     "test:e2e": "jest tests/e2e --forceExit",
-    "test:all": "jest --forceExit --testTimeout=30000",
     "test:debug": "jest \"tests/(integration|e2e)/.*\\.test\\.js$\" --detectOpenHandles --forceExit --testTimeout=30000"
   },
   "jest": {

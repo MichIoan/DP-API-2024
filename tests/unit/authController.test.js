@@ -37,6 +37,9 @@ describe('AuthController', () => {
     authController.handleError = jest.fn();
     authController.validateRequiredFields = jest.fn().mockReturnValue({ isValid: true });
     
+    // Create a spy for isValidEmail but preserve its original implementation
+    jest.spyOn(authController, 'isValidEmail');
+    
     // Clear all mocks
     jest.clearAllMocks();
   });
@@ -76,10 +79,10 @@ describe('AuthController', () => {
     });
     
     it('should return error if email and password are missing', async () => {
-      authController.validateRequiredFields.mockReturnValueOnce({
+      authController.validateRequiredFields.mockImplementationOnce(() => ({
         isValid: false,
         message: 'Email and password are required.'
-      });
+      }));
       
       await authController.register(req, res);
       
@@ -230,10 +233,10 @@ describe('AuthController', () => {
     });
     
     it('should return error if email and password are missing', async () => {
-      authController.validateRequiredFields.mockReturnValueOnce({
+      authController.validateRequiredFields.mockImplementationOnce(() => ({
         isValid: false,
         message: 'Email and password are required.'
-      });
+      }));
       
       await authController.login(req, res);
       

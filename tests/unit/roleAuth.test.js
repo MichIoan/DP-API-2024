@@ -12,6 +12,9 @@ jest.mock('../../src/models/User', () => ({
   }
 }));
 
+// Mock UserRole methods
+UserRole.hasPermission = jest.fn();
+
 describe('Role Authentication Middleware', () => {
   let req;
   let res;
@@ -24,7 +27,9 @@ describe('Role Authentication Middleware', () => {
     };
     
     res = {
-      response: jest.fn().mockReturnThis()
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn().mockReturnThis(),
+      response: jest.fn()
     };
     
     next = jest.fn();
@@ -41,6 +46,9 @@ describe('Role Authentication Middleware', () => {
         role: UserRole.USER
       });
       
+      // Mock hasPermission to return true
+      UserRole.hasPermission.mockReturnValue(true);
+      
       // Set up the middleware with USER role
       const middleware = roleAuth(UserRole.USER);
       
@@ -49,7 +57,8 @@ describe('Role Authentication Middleware', () => {
       
       // Assertions
       expect(next).toHaveBeenCalled();
-      expect(res.response).not.toHaveBeenCalled();
+      expect(res.status).not.toHaveBeenCalled();
+      expect(res.json).not.toHaveBeenCalled();
     });
     
     it('should return 403 if user does not have the required role', async () => {
@@ -59,6 +68,9 @@ describe('Role Authentication Middleware', () => {
         role: UserRole.USER
       });
       
+      // Mock hasPermission to return false
+      UserRole.hasPermission.mockReturnValue(false);
+      
       // Set up the middleware with ADMIN role
       const middleware = roleAuth(UserRole.ADMIN);
       
@@ -67,15 +79,11 @@ describe('Role Authentication Middleware', () => {
       
       // Assertions
       expect(next).not.toHaveBeenCalled();
-      expect(res.response).toHaveBeenCalledWith(
-        req, 
-        res, 
-        403, 
-        {
-          success: false,
-          error: 'Insufficient permissions to access this resource'
-        }
-      );
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        error: 'Insufficient permissions to access this resource'
+      });
     });
     
     it('should handle array of roles and allow access if user has one of them', async () => {
@@ -85,6 +93,9 @@ describe('Role Authentication Middleware', () => {
         role: UserRole.USER
       });
       
+      // Mock hasPermission to return true for one of the roles
+      UserRole.hasPermission.mockReturnValue(true);
+      
       // Set up the middleware with multiple roles
       const middleware = roleAuth([UserRole.ADMIN, UserRole.MODERATOR, UserRole.USER]);
       
@@ -93,7 +104,8 @@ describe('Role Authentication Middleware', () => {
       
       // Assertions
       expect(next).toHaveBeenCalled();
-      expect(res.response).not.toHaveBeenCalled();
+      expect(res.status).not.toHaveBeenCalled();
+      expect(res.json).not.toHaveBeenCalled();
     });
     
     it('should return 401 if userId is not provided', async () => {
@@ -108,15 +120,11 @@ describe('Role Authentication Middleware', () => {
       
       // Assertions
       expect(next).not.toHaveBeenCalled();
-      expect(res.response).toHaveBeenCalledWith(
-        req, 
-        res, 
-        401, 
-        {
-          success: false,
-          error: 'Authentication required'
-        }
-      );
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        error: 'Authentication required'
+      });
     });
     
     it('should return 401 if user is not found', async () => {
@@ -131,15 +139,11 @@ describe('Role Authentication Middleware', () => {
       
       // Assertions
       expect(next).not.toHaveBeenCalled();
-      expect(res.response).toHaveBeenCalledWith(
-        req, 
-        res, 
-        401, 
-        {
-          success: false,
-          error: 'User not found'
-        }
-      );
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        error: 'User not found'
+      });
     });
     
     it('should handle database errors', async () => {
@@ -155,15 +159,11 @@ describe('Role Authentication Middleware', () => {
       
       // Assertions
       expect(next).not.toHaveBeenCalled();
-      expect(res.response).toHaveBeenCalledWith(
-        req, 
-        res, 
-        500, 
-        {
-          success: false,
-          error: 'Internal server error during role verification'
-        }
-      );
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        error: 'Internal server error during role verification'
+      });
     });
   });
   
@@ -176,12 +176,16 @@ describe('Role Authentication Middleware', () => {
           role: UserRole.ADMIN
         });
         
+        // Mock hasPermission to return true
+        UserRole.hasPermission.mockReturnValue(true);
+        
         // Call the middleware
         await roleAuth.isAdmin(req, res, next);
         
         // Assertions
         expect(next).toHaveBeenCalled();
-        expect(res.response).not.toHaveBeenCalled();
+        expect(res.status).not.toHaveBeenCalled();
+        expect(res.json).not.toHaveBeenCalled();
       });
       
       it('should return 403 if user is not an admin', async () => {
@@ -191,20 +195,19 @@ describe('Role Authentication Middleware', () => {
           role: UserRole.USER
         });
         
+        // Mock hasPermission to return false
+        UserRole.hasPermission.mockReturnValue(false);
+        
         // Call the middleware
         await roleAuth.isAdmin(req, res, next);
         
         // Assertions
         expect(next).not.toHaveBeenCalled();
-        expect(res.response).toHaveBeenCalledWith(
-          req, 
-          res, 
-          403, 
-          {
-            success: false,
-            error: 'Insufficient permissions to access this resource'
-          }
-        );
+        expect(res.status).toHaveBeenCalledWith(403);
+        expect(res.json).toHaveBeenCalledWith({
+          success: false,
+          error: 'Insufficient permissions to access this resource'
+        });
       });
     });
     
@@ -216,12 +219,16 @@ describe('Role Authentication Middleware', () => {
           role: UserRole.MODERATOR
         });
         
+        // Mock hasPermission to return true
+        UserRole.hasPermission.mockReturnValue(true);
+        
         // Call the middleware
         await roleAuth.isModerator(req, res, next);
         
         // Assertions
         expect(next).toHaveBeenCalled();
-        expect(res.response).not.toHaveBeenCalled();
+        expect(res.status).not.toHaveBeenCalled();
+        expect(res.json).not.toHaveBeenCalled();
       });
       
       it('should call next() if user is an admin', async () => {
@@ -231,12 +238,16 @@ describe('Role Authentication Middleware', () => {
           role: UserRole.ADMIN
         });
         
+        // Mock hasPermission to return true
+        UserRole.hasPermission.mockReturnValue(true);
+        
         // Call the middleware
         await roleAuth.isModerator(req, res, next);
         
         // Assertions
         expect(next).toHaveBeenCalled();
-        expect(res.response).not.toHaveBeenCalled();
+        expect(res.status).not.toHaveBeenCalled();
+        expect(res.json).not.toHaveBeenCalled();
       });
       
       it('should return 403 if user is not a moderator or admin', async () => {
@@ -246,20 +257,19 @@ describe('Role Authentication Middleware', () => {
           role: UserRole.USER
         });
         
+        // Mock hasPermission to return false
+        UserRole.hasPermission.mockReturnValue(false);
+        
         // Call the middleware
         await roleAuth.isModerator(req, res, next);
         
         // Assertions
         expect(next).not.toHaveBeenCalled();
-        expect(res.response).toHaveBeenCalledWith(
-          req, 
-          res, 
-          403, 
-          {
-            success: false,
-            error: 'Insufficient permissions to access this resource'
-          }
-        );
+        expect(res.status).toHaveBeenCalledWith(403);
+        expect(res.json).toHaveBeenCalledWith({
+          success: false,
+          error: 'Insufficient permissions to access this resource'
+        });
       });
     });
   });

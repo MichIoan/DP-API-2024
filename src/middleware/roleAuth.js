@@ -20,7 +20,7 @@ function roleAuth(requiredRoles) {
             const userId = req.userId;
             
             if (!userId) {
-                return res.response(req, res, 401, {
+                return res.status(401).json({
                     success: false,
                     error: 'Authentication required'
                 });
@@ -30,7 +30,7 @@ function roleAuth(requiredRoles) {
             const user = await User.findByPk(userId);
             
             if (!user) {
-                return res.response(req, res, 401, {
+                return res.status(401).json({
                     success: false,
                     error: 'User not found'
                 });
@@ -42,7 +42,7 @@ function roleAuth(requiredRoles) {
             );
             
             if (!hasPermission) {
-                return res.response(req, res, 403, {
+                return res.status(403).json({
                     success: false,
                     error: 'Insufficient permissions to access this resource'
                 });
@@ -55,7 +55,7 @@ function roleAuth(requiredRoles) {
             next();
         } catch (error) {
             console.error('Role authentication error:', error);
-            return res.response(req, res, 500, {
+            return res.status(500).json({
                 success: false,
                 error: 'Internal server error during role verification'
             });

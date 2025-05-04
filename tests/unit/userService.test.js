@@ -9,7 +9,11 @@ const UserStatus = require('../../src/models/enums/UserStatus');
 const UserRole = require('../../src/models/enums/UserRole');
 
 // Mock dependencies
-jest.mock('bcrypt');
+jest.mock('bcrypt', () => ({
+  genSalt: jest.fn(),
+  hash: jest.fn(),
+  compare: jest.fn()
+}));
 jest.mock('jsonwebtoken');
 
 // Mock the models
