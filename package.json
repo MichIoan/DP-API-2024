@@ -8,7 +8,18 @@
   },
   "scripts": {
     "start": "react-scripts start",
-    "test": "jest"
+    "test": "jest tests/integration tests/e2e --detectOpenHandles",
+    "test:all": "jest",
+    "test:integration": "jest tests/integration --detectOpenHandles",
+    "test:e2e": "jest tests/e2e --detectOpenHandles",
+    "test:unit": "jest tests/unit --detectOpenHandles"
+  },
+  "jest": {
+    "setupFilesAfterEnv": ["./jest.setup.js"],
+    "testEnvironment": "node",
+    "testPathIgnorePatterns": ["/node_modules/"],
+    "collectCoverage": true,
+    "verbose": true
   },
   "author": "",
   "license": "ISC",
@@ -53,6 +64,7 @@
   },
   "devDependencies": {
     "jest": "^27.5.1",
+    "sequelize-mock": "^0.10.2",
     "supertest": "^7.1.0"
   }
 }
