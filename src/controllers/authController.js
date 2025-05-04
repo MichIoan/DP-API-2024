@@ -95,8 +95,29 @@ class AuthController extends BaseController {
      * @returns {boolean} - True if email is valid
      */
     isValidEmail(email) {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        return emailRegex.test(email);
+        // Check for null or empty email
+        if (!email) return false;
+        
+        // Check for multiple @ symbols
+        if ((email.match(/@/g) || []).length !== 1) return false;
+        
+        // Split email into parts
+        const parts = email.split('@');
+        const localPart = parts[0];
+        const domainPart = parts[1];
+        
+        // Check for empty parts
+        if (!localPart || !domainPart) return false;
+        
+        // Check for double dots in domain
+        if (domainPart.includes('..')) return false;
+        
+        // Check for at least one dot in domain
+        if (!domainPart.includes('.')) return false;
+        
+        // Check for basic format using regex
+        const basicRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return basicRegex.test(email);
     }
 
     /**

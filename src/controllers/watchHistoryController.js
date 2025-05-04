@@ -140,6 +140,45 @@ class WatchHistoryController extends BaseController {
     }
     
     /**
+     * Remove item from watch history
+     * @param {Object} req - Express request object
+     * @param {Object} res - Express response object
+     */
+    async removeFromHistory(req, res) {
+        const { historyId } = req.params;
+
+        if (!historyId) {
+            return this.handleError(req, res, 400, "History item ID is required");
+        }
+
+        try {
+            // Get the history item first
+            const historyItem = await watchHistoryService.getHistoryItemById(historyId);
+            
+            if (!historyItem) {
+                return this.handleError(req, res, 404, "History item not found");
+            }
+
+            // Verify ownership using the item's profile_id
+            const userId = req.userId;
+            const isAuthorized = await this.verifyProfileOwnership(userId, historyItem.profile_id);
+            
+            if (!isAuthorized) {
+                return this.handleError(req, res, 403, "You don't have permission to modify this profile's watch history");
+            }
+
+            await watchHistoryService.removeFromHistory(historyId);
+            
+            return this.handleSuccess(req, res, 200, {
+                message: "Item removed from history successfully"
+            });
+        } catch (error) {
+            console.error(error);
+            return this.handleError(req, res, 500, "Error removing item from history", error.message);
+        }
+    }
+    
+    /**
      * Verify that a profile belongs to the authenticated user
      * @param {number} userId - User ID
      * @param {number} profileId - Profile ID
