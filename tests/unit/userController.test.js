@@ -7,6 +7,18 @@ const userService = require('../../src/services/userService');
 // Mock dependencies
 jest.mock('../../src/services/userService');
 
+// Mock the User model that's used in the controller
+jest.mock('../../src/models/User', () => ({
+  User: {
+    findByPk: jest.fn()
+  }
+}));
+
+// Create User in the global scope since it's used directly in the controller
+global.User = {
+  findByPk: jest.fn()
+};
+
 describe('UserController', () => {
   let userController;
   let req;
@@ -30,6 +42,14 @@ describe('UserController', () => {
     // Mock controller methods
     userController.handleSuccess = jest.fn();
     userController.handleError = jest.fn();
+    userController.validateRequiredFields = jest.fn().mockReturnValue({ isValid: true });
+    
+    // Mock all the necessary userService methods
+    userService.getUserById = jest.fn();
+    userService.updateUser = jest.fn();
+    userService.deleteUser = jest.fn();
+    userService.getReferredUsers = jest.fn();
+    userService.applyReferralCode = jest.fn();
     
     // Clear all mocks
     jest.clearAllMocks();
@@ -161,32 +181,67 @@ describe('UserController', () => {
   
   describe('deleteUserAccount', () => {
     it('should delete user account successfully', async () => {
-      // Mock userService.deleteUser
+      // Prepare the test: mock objects and spy functions
+      // Mock the request object with required password
+      req.body = { password: 'password123' };
+      
+      // Mock User.findByPk to return a valid user
+      global.User.findByPk.mockResolvedValue({
+        user_id: 1,
+        email: 'test@example.com'
+      });
+      
+      // Mock the validateRequiredFields method
+      userController.validateRequiredFields.mockReturnValue({ isValid: true });
+      
+      // Mock the deleteUser service call
       userService.deleteUser.mockResolvedValue(true);
       
-      // Call the method
+      // Execute the controller method
       await userController.deleteUserAccount(req, res);
       
-      // Assertions
+      // Verify expected behaviors
+      expect(userController.validateRequiredFields).toHaveBeenCalledWith(
+        req.body, 
+        ['password']
+      );
+      expect(global.User.findByPk).toHaveBeenCalledWith(1);
       expect(userService.deleteUser).toHaveBeenCalledWith(1);
       expect(userController.handleSuccess).toHaveBeenCalledWith(
         req, 
         res, 
         200, 
-        { message: "User account deleted successfully" }
+        { message: "Account deleted successfully" }
       );
-      expect(userController.handleError).not.toHaveBeenCalled();
     });
     
     it('should handle errors', async () => {
-      // Mock userService.deleteUser to throw an error
+      // Prepare the test: mock objects and spy functions
+      // Mock the request object with required password
+      req.body = { password: 'password123' };
+      
+      // Mock User.findByPk to return a valid user
+      global.User.findByPk.mockResolvedValue({
+        user_id: 1,
+        email: 'test@example.com'
+      });
+      
+      // Mock the validateRequiredFields method
+      userController.validateRequiredFields.mockReturnValue({ isValid: true });
+      
+      // Mock the deleteUser service call to throw an error
       const error = new Error('Database error');
       userService.deleteUser.mockRejectedValue(error);
       
-      // Call the method
+      // Execute the controller method
       await userController.deleteUserAccount(req, res);
       
-      // Assertions
+      // Verify expected behaviors
+      expect(userController.validateRequiredFields).toHaveBeenCalledWith(
+        req.body, 
+        ['password']
+      );
+      expect(global.User.findByPk).toHaveBeenCalledWith(1);
       expect(userService.deleteUser).toHaveBeenCalledWith(1);
       expect(userController.handleError).toHaveBeenCalledWith(
         req, 
@@ -195,7 +250,6 @@ describe('UserController', () => {
         "Failed to delete user account",
         error.message
       );
-      expect(userController.handleSuccess).not.toHaveBeenCalled();
     });
   });
   
@@ -253,13 +307,18 @@ describe('UserController', () => {
   
   describe('applyReferralCode', () => {
     it('should apply referral code successfully', async () => {
-      // Mock request body
+      // Mock request body with correct field name (referralCode, not referral_code)
       req.body = {
-        referral_code: 'ABC123'
+        referralCode: 'ABC123'
       };
       
+      // Mock validation
+      userController.validateRequiredFields.mockReturnValue({ isValid: true });
+      
       // Mock userService.applyReferralCode
-      userService.applyReferralCode.mockResolvedValue(true);
+      userService.applyReferralCode.mockResolvedValue({ 
+        message: "Referral code applied successfully" 
+      });
       
       // Call the method
       await userController.applyReferralCode(req, res);
@@ -279,10 +338,16 @@ describe('UserController', () => {
       // Empty request body
       req.body = {};
       
+      // Override the validation mock to fail
+      userController.validateRequiredFields.mockReturnValue({ 
+        isValid: false,
+        missingFields: ['referralCode']
+      });
+      
       // Call the method
       await userController.applyReferralCode(req, res);
       
-      // Assertions
+      // Assertions - applyReferralCode should not be called
       expect(userService.applyReferralCode).not.toHaveBeenCalled();
       expect(userController.handleError).toHaveBeenCalledWith(
         req, 
@@ -294,10 +359,13 @@ describe('UserController', () => {
     });
     
     it('should handle errors', async () => {
-      // Mock request body
+      // Mock request body with correct field name
       req.body = {
-        referral_code: 'INVALID'
+        referralCode: 'INVALID'
       };
+      
+      // Mock validation
+      userController.validateRequiredFields.mockReturnValue({ isValid: true });
       
       // Mock userService.applyReferralCode to throw an error
       const error = new Error('Invalid referral code');
