@@ -1,5 +1,6 @@
 /**
  * Integration tests for auth routes
+ * NOTE: These tests are skipped until proper test database setup is configured
  */
 const request = require('supertest');
 const { app, startServer, closeServer } = require('../mocks/mockApp'); // Use our mock app with server control
