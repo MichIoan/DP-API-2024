@@ -78,12 +78,12 @@ describe('Netflix API E2E Tests', () => {
   
   // Start server once before all tests
   beforeAll(() => {
-    // Only start server if not already running (helps when running with integration tests)
-    if (!global.__e2e_server__) {
+    // Use a dedicated global variable for this test suite
+    if (!global.__e2e_test_server__) {
       server = startServer();
-      global.__e2e_server__ = server;
+      global.__e2e_test_server__ = server;
     } else {
-      server = global.__e2e_server__;
+      server = global.__e2e_test_server__;
     }
     // Create a single agent to reuse across tests
     agent = request.agent(server);
@@ -91,11 +91,9 @@ describe('Netflix API E2E Tests', () => {
   
   // Close server after all tests
   afterAll(async () => {
-    // Only close server if we're not running with integration tests
-    if (process.env.JEST_WORKER_ID === '1' || !process.env.JEST_WORKER_ID) {
-      await closeServer();
-      global.__e2e_server__ = null;
-    }
+    // Don't actually close the server here, let the global teardown handle it
+    // This prevents issues when running multiple test suites
+    server = null;
   });
   
   beforeEach(() => {

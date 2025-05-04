@@ -31,12 +31,12 @@ describe('Auth Routes', () => {
 
   // Start server before all tests and create a single agent to reuse
   beforeAll(() => {
-    // Only start server if not already running (helps when running with e2e tests)
-    if (!global.__integration_server__) {
+    // Use a dedicated global variable for this test suite
+    if (!global.__test_server__) {
       server = startServer();
-      global.__integration_server__ = server;
+      global.__test_server__ = server;
     } else {
-      server = global.__integration_server__;
+      server = global.__test_server__;
     }
     // Create a single agent that will reuse connections
     agent = request.agent(server);
@@ -44,11 +44,9 @@ describe('Auth Routes', () => {
 
   // Close server after all tests
   afterAll(async () => {
-    // Only close server if we're not running with e2e tests
-    if (process.env.JEST_WORKER_ID === '1' || !process.env.JEST_WORKER_ID) {
-      await closeServer();
-      global.__integration_server__ = null;
-    }
+    // Don't actually close the server here, let the global teardown handle it
+    // This prevents issues when running multiple test suites
+    server = null;
   });
 
   beforeEach(() => {

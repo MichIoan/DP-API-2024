@@ -472,6 +472,260 @@ adminRouter.put('/users/:userId/role', isLoggedIn, requireRole(['ADMIN']), async
   }
 });
 
+// Profile Routes
+app.get('/profiles', isLoggedIn, (req, res) => {
+  const { Profile } = require('../../src/models/Profile');
+  Profile.findAll({ where: { user_id: req.user.id } })
+    .then(profiles => {
+      res.status(200).json({ profiles });
+    })
+    .catch(err => {
+      console.error(err);
+      res.status(500).json({ error: 'Failed to fetch profiles' });
+    });
+});
+
+app.post('/profiles', isLoggedIn, (req, res) => {
+  const { Profile } = require('../../src/models/Profile');
+  const profileData = {
+    ...req.body,
+    user_id: req.user.id
+  };
+  
+  Profile.create(profileData)
+    .then(profile => {
+      res.status(201).json(profile);
+    })
+    .catch(err => {
+      console.error(err);
+      res.status(500).json({ error: 'Failed to create profile' });
+    });
+});
+
+app.get('/profiles/:id', isLoggedIn, (req, res) => {
+  const { Profile } = require('../../src/models/Profile');
+  Profile.findByPk(req.params.id)
+    .then(profile => {
+      if (!profile) {
+        return res.status(404).json({ error: 'Profile not found' });
+      }
+      
+      if (profile.user_id !== req.user.id) {
+        return res.status(403).json({ error: 'You do not have permission to access this profile' });
+      }
+      
+      res.status(200).json(profile);
+    })
+    .catch(err => {
+      console.error(err);
+      res.status(500).json({ error: 'Failed to fetch profile' });
+    });
+});
+
+app.put('/profiles/:id', isLoggedIn, (req, res) => {
+  const { Profile } = require('../../src/models/Profile');
+  Profile.findByPk(req.params.id)
+    .then(profile => {
+      if (!profile) {
+        return res.status(404).json({ error: 'Profile not found' });
+      }
+      
+      if (profile.user_id !== req.user.id) {
+        return res.status(403).json({ error: 'You do not have permission to update this profile' });
+      }
+      
+      return Profile.update(req.body, { where: { profile_id: req.params.id } })
+        .then(() => {
+          res.status(200).json({ message: 'Profile updated successfully' });
+        });
+    })
+    .catch(err => {
+      console.error(err);
+      res.status(500).json({ error: 'Failed to update profile' });
+    });
+});
+
+app.delete('/profiles/:id', isLoggedIn, (req, res) => {
+  const { Profile } = require('../../src/models/Profile');
+  Profile.findByPk(req.params.id)
+    .then(profile => {
+      if (!profile) {
+        return res.status(404).json({ error: 'Profile not found' });
+      }
+      
+      if (profile.user_id !== req.user.id) {
+        return res.status(403).json({ error: 'You do not have permission to delete this profile' });
+      }
+      
+      return Profile.destroy({ where: { profile_id: req.params.id } })
+        .then(() => {
+          res.status(200).json({ message: 'Profile deleted successfully' });
+        });
+    })
+    .catch(err => {
+      console.error(err);
+      res.status(500).json({ error: 'Failed to delete profile' });
+    });
+});
+
+// Watchlist Routes
+app.get('/profiles/:profileId/watchlist', isLoggedIn, (req, res) => {
+  const { Profile } = require('../../src/models/Profile');
+  const { WatchList } = require('../../src/models/WatchList');
+  
+  Profile.findByPk(req.params.profileId)
+    .then(profile => {
+      if (!profile) {
+        return res.status(404).json({ error: 'Profile not found' });
+      }
+      
+      if (profile.user_id !== req.user.id) {
+        return res.status(403).json({ error: 'You do not have permission to access this watchlist' });
+      }
+      
+      return WatchList.findAll({
+        where: { profile_id: req.params.profileId },
+        include: ['Movie', 'Series']
+      })
+        .then(watchlist => {
+          res.status(200).json({ watchlist });
+        });
+    })
+    .catch(err => {
+      console.error(err);
+      res.status(500).json({ error: 'Failed to fetch watchlist' });
+    });
+});
+
+app.post('/watchlist', isLoggedIn, (req, res) => {
+  const { Profile } = require('../../src/models/Profile');
+  const { WatchList } = require('../../src/models/WatchList');
+  
+  const { profile_id, movie_id, series_id } = req.body;
+  
+  if (!profile_id) {
+    return res.status(400).json({ error: 'Profile ID is required' });
+  }
+  
+  if (!movie_id && !series_id) {
+    return res.status(400).json({ error: 'Either movie_id or series_id is required' });
+  }
+  
+  Profile.findByPk(profile_id)
+    .then(profile => {
+      if (!profile) {
+        return res.status(404).json({ error: 'Profile not found' });
+      }
+      
+      if (profile.user_id !== req.user.id) {
+        return res.status(403).json({ error: 'You do not have permission to modify this watchlist' });
+      }
+      
+      const watchlistItem = {
+        profile_id,
+        status: 'UNWATCHED',
+        added_date: new Date()
+      };
+      
+      if (movie_id) watchlistItem.movie_id = movie_id;
+      if (series_id) watchlistItem.series_id = series_id;
+      
+      return WatchList.create(watchlistItem);
+    })
+    .then(watchlistItem => {
+      res.status(201).json(watchlistItem);
+    })
+    .catch(err => {
+      console.error(err);
+      res.status(500).json({ error: 'Failed to add to watchlist' });
+    });
+});
+
+app.get('/watchlist/:id', isLoggedIn, (req, res) => {
+  const { WatchList } = require('../../src/models/WatchList');
+  const { Profile } = require('../../src/models/Profile');
+  
+  WatchList.findByPk(req.params.id, { include: ['Profile'] })
+    .then(watchlistItem => {
+      if (!watchlistItem) {
+        return res.status(404).json({ error: 'Watchlist item not found' });
+      }
+      
+      return Profile.findByPk(watchlistItem.profile_id)
+        .then(profile => {
+          if (!profile) {
+            return res.status(404).json({ error: 'Related profile not found' });
+          }
+          
+          if (profile.user_id !== req.user.id) {
+            return res.status(403).json({ error: 'You do not have permission to access this watchlist item' });
+          }
+          
+          res.status(200).json(watchlistItem);
+        });
+    })
+    .catch(err => {
+      console.error(err);
+      res.status(500).json({ error: 'Failed to fetch watchlist item' });
+    });
+});
+
+app.put('/watchlist/:id', isLoggedIn, (req, res) => {
+  const { WatchList } = require('../../src/models/WatchList');
+  const { Profile } = require('../../src/models/Profile');
+  
+  WatchList.findByPk(req.params.id)
+    .then(watchlistItem => {
+      if (!watchlistItem) {
+        return res.status(404).json({ error: 'Watchlist item not found' });
+      }
+      
+      return Profile.findByPk(watchlistItem.profile_id)
+        .then(profile => {
+          if (profile.user_id !== req.user.id) {
+            return res.status(403).json({ error: 'You do not have permission to modify this watchlist item' });
+          }
+          
+          return WatchList.update(req.body, { where: { watchlist_id: req.params.id } })
+            .then(() => {
+              res.status(200).json({ message: 'Watchlist item updated successfully' });
+            });
+        });
+    })
+    .catch(err => {
+      console.error(err);
+      res.status(500).json({ error: 'Failed to update watchlist item' });
+    });
+});
+
+app.delete('/watchlist/:id', isLoggedIn, (req, res) => {
+  const { WatchList } = require('../../src/models/WatchList');
+  const { Profile } = require('../../src/models/Profile');
+  
+  WatchList.findByPk(req.params.id)
+    .then(watchlistItem => {
+      if (!watchlistItem) {
+        return res.status(404).json({ error: 'Watchlist item not found' });
+      }
+      
+      return Profile.findByPk(watchlistItem.profile_id)
+        .then(profile => {
+          if (profile.user_id !== req.user.id) {
+            return res.status(403).json({ error: 'You do not have permission to delete this watchlist item' });
+          }
+          
+          return WatchList.destroy({ where: { watchlist_id: req.params.id } })
+            .then(() => {
+              res.status(200).json({ message: 'Watchlist item removed successfully' });
+            });
+        });
+    })
+    .catch(err => {
+      console.error(err);
+      res.status(500).json({ error: 'Failed to remove watchlist item' });
+    });
+});
+
 // Mount routers
 app.use('/auth', authRouter);
 app.use('/user', userRouter);
@@ -482,21 +736,46 @@ app.use('/admin', adminRouter);
 // Create a server that can be closed after tests
 let server;
 const startServer = () => {
-  const port = process.env.TEST_PORT || 3001;
+  // If there's already a global server instance, return it
+  if (global.__e2e_test_server__) {
+    return global.__e2e_test_server__;
+  }
+  
+  // Create a new server instance
+  const port = process.env.E2E_TEST_PORT || 3002;
   server = app.listen(port);
+  
+  // Store the server instance globally
+  global.__e2e_test_server__ = server;
+  
+  // Add a forceful cleanup mechanism for the server
+  process.on('exit', () => {
+    if (server && server.listening) {
+      server.close();
+    }
+  });
+  
   return server;
 };
 
 const closeServer = () => {
-  if (server) {
-    return new Promise((resolve) => {
-      server.close(() => {
-        server = null;
-        resolve();
-      });
-    });
+  if (!server) {
+    return Promise.resolve();
   }
-  return Promise.resolve();
+  
+  return new Promise((resolve) => {
+    if (!server.listening) {
+      server = null;
+      global.__e2e_test_server__ = null;
+      return resolve();
+    }
+    
+    server.close(() => {
+      server = null;
+      global.__e2e_test_server__ = null;
+      resolve();
+    });
+  });
 };
 
 module.exports = { app, startServer, closeServer };

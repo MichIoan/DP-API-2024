@@ -172,21 +172,46 @@ app.use('/auth', authRouter);
 // Create a server that can be closed after tests
 let server;
 const startServer = () => {
+  // If there's already a global server instance, return it
+  if (global.__test_server__) {
+    return global.__test_server__;
+  }
+  
+  // Create a new server instance
   const port = process.env.TEST_PORT || 3001;
   server = app.listen(port);
+  
+  // Store the server instance globally
+  global.__test_server__ = server;
+  
+  // Add a forceful cleanup mechanism for the server
+  process.on('exit', () => {
+    if (server && server.listening) {
+      server.close();
+    }
+  });
+  
   return server;
 };
 
 const closeServer = () => {
-  if (server) {
-    return new Promise((resolve) => {
-      server.close(() => {
-        server = null;
-        resolve();
-      });
-    });
+  if (!server) {
+    return Promise.resolve();
   }
-  return Promise.resolve();
+  
+  return new Promise((resolve) => {
+    if (!server.listening) {
+      server = null;
+      global.__test_server__ = null;
+      return resolve();
+    }
+    
+    server.close(() => {
+      server = null;
+      global.__test_server__ = null;
+      resolve();
+    });
+  });
 };
 
 module.exports = { app, startServer, closeServer };
