@@ -14,43 +14,62 @@ const validate = (schema) => {
             return next();
         }
 
-        // Validate request data against schema
-        const validationOptions = {
-            abortEarly: false, // Return all errors, not just the first one
-            allowUnknown: true, // Allow unknown fields (don't reject them)
-            stripUnknown: false // Don't remove unknown fields
+        // Validation options
+        const options = {
+            abortEarly: false,   // Return all errors
+            allowUnknown: true,  // Allow unknown fields
+            stripUnknown: false  // Don't remove unknown fields
         };
 
-        // Validate different parts of the request based on schema
-        const { error, value } = schema.validate(
-            {
-                body: req.body,
-                query: req.query,
-                params: req.params
-            },
-            validationOptions
-        );
-
-        if (error) {
-            // Format validation errors
-            const errors = error.details.map(detail => ({
-                path: detail.path.join('.'),
-                message: detail.message
-            }));
-
-            return res.status(400).json({
-                status: 'error',
-                message: 'Validation error',
-                errors
-            });
+        // Validate body if schema has body validator
+        if (schema.body && req.body) {
+            const { error, value } = schema.body.validate(req.body, options);
+            if (error) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Validation error',
+                    data: error.details.map(err => ({
+                        field: err.path.join('.'),
+                        message: err.message
+                    }))
+                });
+            }
+            req.body = value;
         }
 
-        // Update request with validated values
-        if (value.body) req.body = value.body;
-        if (value.query) req.query = value.query;
-        if (value.params) req.params = value.params;
+        // Validate query if schema has query validator
+        if (schema.query && req.query) {
+            const { error, value } = schema.query.validate(req.query, options);
+            if (error) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Validation error',
+                    data: error.details.map(err => ({
+                        field: err.path.join('.'),
+                        message: err.message
+                    }))
+                });
+            }
+            req.query = value;
+        }
 
-        return next();
+        // Validate params if schema has params validator
+        if (schema.params && req.params) {
+            const { error, value } = schema.params.validate(req.params, options);
+            if (error) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Validation error',
+                    data: error.details.map(err => ({
+                        field: err.path.join('.'),
+                        message: err.message
+                    }))
+                });
+            }
+            req.params = value;
+        }
+
+        next();
     };
 };
 
