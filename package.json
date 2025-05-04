@@ -7,8 +7,25 @@
     "doc": "docs"
   },
   "scripts": {
-    "start": "react-scripts start",
-    "test": "jest tests/unit"
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "test": "jest \"tests/(integration|e2e)/.*\\.test\\.js$\" --detectOpenHandles --forceExit",
+    "test:unit": "jest tests/unit",
+    "test:integration": "jest tests/integration --forceExit",
+    "test:e2e": "jest tests/e2e --forceExit",
+    "test:all": "jest --detectOpenHandles --forceExit"
+  },
+  "jest": {
+    "setupFilesAfterEnv": ["./jest.setup.js"],
+    "globalTeardown": "./jest.teardown.js",
+    "testEnvironment": "node",
+    "coveragePathIgnorePatterns": [
+      "/node_modules/"
+    ],
+    "collectCoverage": true,
+    "verbose": true,
+    "forceExit": true,
+    "detectOpenHandles": true
   },
   "author": "",
   "license": "ISC",
@@ -53,6 +70,7 @@
   },
   "devDependencies": {
     "jest": "^27.5.1",
+    "sequelize-mock": "^0.10.2",
     "supertest": "^7.1.0"
   }
 }
