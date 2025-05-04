@@ -1,13 +1,13 @@
 /**
  * Unit tests for the Profile Controller
  */
-const profileController = require('../../src/controllers/profileController');
-const profileService = require('../../src/services/profileService');
-const { Profile } = require('../../src/models/Profile');
+const profileController = require('../../../src/controllers/profileController');
+const profileService = require('../../../src/services/profileService');
+const { Profile } = require('../../../src/models/Profile');
 
 // Mock dependencies
-jest.mock('../../src/services/profileService');
-jest.mock('../../src/models/Profile', () => {
+jest.mock('../../../src/services/profileService');
+jest.mock('../../../src/models/Profile', () => {
   return {
     Profile: {
       findByPk: jest.fn()

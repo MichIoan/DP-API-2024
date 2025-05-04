@@ -119,9 +119,24 @@ describe('Watchlist Operations E2E Tests', () => {
   
   // Close server after all tests
   afterAll(async () => {
-    // Don't actually close the server here, let the global teardown handle it
-    // This prevents issues when running multiple test suites
+    // Properly close the server to prevent open handles
+    if (agent) {
+      await new Promise(resolve => {
+        agent.app.close(() => {
+          resolve();
+        });
+      });
+    }
+    
+    // Explicitly close the server
+    if (server) {
+      await closeServer();
+    }
+    
+    // Clean up references
+    agent = null;
     server = null;
+    global.__watchlist_test_server__ = null;
   });
   
   beforeEach(() => {

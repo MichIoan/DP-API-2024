@@ -1,11 +1,11 @@
 /**
  * Unit tests for the Base Controller
  */
-const BaseController = require('../../src/controllers/BaseController');
-const responseUtils = require('../../src/utils/responseUtils');
+const BaseController = require('../../../src/controllers/BaseController');
+const responseUtils = require('../../../src/utils/responseUtils');
 
 // Mock responseUtils
-jest.mock('../../src/utils/responseUtils', () => ({
+jest.mock('../../../src/utils/responseUtils', () => ({
   successResponse: jest.fn().mockReturnValue({
     statusCode: 200,
     body: { success: true }

@@ -1,15 +1,15 @@
 /**
  * Unit tests for the Subscription Controller
  */
-const subscriptionController = require('../../src/controllers/subscriptionController');
-const subscriptionService = require('../../src/services/subscriptionService');
-const { Subscription } = require('../../src/models/Subscription');
-const User = require('../../src/models/User');
+const subscriptionController = require('../../../src/controllers/subscriptionController');
+const subscriptionService = require('../../../src/services/subscriptionService');
+const { Subscription } = require('../../../src/models/Subscription');
+const User = require('../../../src/models/User');
 
 // Mock dependencies
-jest.mock('../../src/services/subscriptionService');
-jest.mock('../../src/models/Subscription');
-jest.mock('../../src/models/User');
+jest.mock('../../../src/services/subscriptionService');
+jest.mock('../../../src/models/Subscription');
+jest.mock('../../../src/models/User');
 
 describe('SubscriptionController', () => {
   let req;
