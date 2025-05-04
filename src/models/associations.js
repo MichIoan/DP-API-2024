@@ -3,20 +3,24 @@
  * This file sets up all the relationships between models
  */
 
-// Import all models
-const User = require('./User');
-const Profile = require('./Profile');
-const Subscription = require('./Subscription');
-const Series = require('./Series');
-const Season = require('./Season');
-const Media = require('./Media');
-const Genre = require('./Genre');
-const MediaGenres = require('./MediaGenres');
-const WatchHistory = require('./WatchHistory').WatchHistory;
-const WatchList = require('./WatchList');
+// Import all models from central index to avoid circular dependencies
+const {
+  User,
+  Profile,
+  Subscription,
+  Series,
+  Season,
+  Media,
+  Genre,
+  MediaGenres,
+  WatchHistory,
+  WatchList,
+  RefreshToken
+} = require('./index');
+
+// Import additional models that might not be in the index
 const Subtitle = require('./Subtitle');
 const ViewingClassification = require('./ViewingClassification');
-const RefreshToken = require('./RefreshToken');
 
 // User associations
 User.hasMany(Profile, { foreignKey: 'user_id' });

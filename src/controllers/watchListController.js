@@ -39,12 +39,12 @@ class WatchListController extends BaseController {
      */
     async addToWatchList(req, res) {
         const { profileId, mediaId } = req.body;
-
+    
         const validation = this.validateRequiredFields(req.body, ['profileId', 'mediaId']);
         if (!validation.isValid) {
             return this.handleError(req, res, 400, "Please provide profileId and mediaId.");
         }
-
+    
         try {
             // Verify the profile belongs to the authenticated user
             const userId = req.userId;
@@ -62,6 +62,11 @@ class WatchListController extends BaseController {
             });
         } catch (error) {
             console.error(error);
+            // Handle duplicate entry specifically
+            if (error.code === 'DUPLICATE_ENTRY') {
+                return this.handleError(req, res, 409, "This media is already in your watch list");
+            }
+            // Default to 500 for other errors
             return this.handleError(req, res, 500, "Error adding to watch list", error.message);
         }
     }
@@ -76,7 +81,7 @@ class WatchListController extends BaseController {
         const updateData = req.body;
 
         if (!watchListId) {
-            return this.handleError(req, res, 400, "Please provide a watchListId to update.");
+            return this.handleError(req, res, 400, "Watch list item ID is required");
         }
 
         try {
@@ -113,30 +118,33 @@ class WatchListController extends BaseController {
         const { watchListId } = req.params;
 
         if (!watchListId) {
-            return this.handleError(req, res, 400, "Please provide a watchListId to remove.");
+            return this.handleError(req, res, 400, "Watch list item ID is required");
         }
 
         try {
-            // Verify the watch list entry belongs to the authenticated user
+            // Get the watch list item first
+            const watchListItem = await watchListService.getWatchListItemById(watchListId);
+            
+            if (!watchListItem) {
+                return this.handleError(req, res, 404, "Watch list item not found");
+            }
+
+            // Verify ownership using the item's profile_id
             const userId = req.userId;
-            const isAuthorized = await this.verifyWatchListOwnership(userId, watchListId);
+            const isAuthorized = await this.verifyProfileOwnership(userId, watchListItem.profile_id);
             
             if (!isAuthorized) {
-                return this.handleError(req, res, 403, "You don't have permission to remove this watch list entry");
+                return this.handleError(req, res, 403, "You don't have permission to modify this profile's watch list");
             }
-            
-            const result = await watchListService.removeFromWatchList(watchListId);
-            
-            if (!result) {
-                return this.handleError(req, res, 404, "Watch list entry not found");
-            }
+
+            await watchListService.removeFromWatchList(watchListId);
             
             return this.handleSuccess(req, res, 200, {
-                message: "Removed from watch list successfully"
+                message: "Item removed from watch list successfully"
             });
         } catch (error) {
             console.error(error);
-            return this.handleError(req, res, 500, "Error removing from watch list", error.message);
+            return this.handleError(req, res, 500, "Error removing item from watch list", error.message);
         }
     }
     

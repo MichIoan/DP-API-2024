@@ -7,6 +7,24 @@ const watchListService = require('../../src/services/watchListService');
 // Mock dependencies
 jest.mock('../../src/services/watchListService');
 
+// Mock the database models that might be used
+jest.mock('../../src/models/Profile', () => ({
+  Profile: {
+    findOne: jest.fn()
+  }
+}));
+
+jest.mock('../../src/models/WatchList', () => ({
+  WatchList: {
+    sequelize: {
+      query: jest.fn(),
+      QueryTypes: {
+        SELECT: 'SELECT'
+      }
+    }
+  }
+}));
+
 describe('WatchListController', () => {
   let watchListController;
   let req;
@@ -34,6 +52,25 @@ describe('WatchListController', () => {
     watchListController.handleError = jest.fn();
     watchListController.validateRequiredFields = jest.fn().mockReturnValue({ isValid: true });
     watchListController.verifyProfileOwnership = jest.fn().mockResolvedValue(true);
+    watchListController.verifyWatchListOwnership = jest.fn().mockResolvedValue(true);
+    
+    // Set up default implementations for watchListService mocks
+    watchListService.getWatchList.mockResolvedValue([]);
+    watchListService.getWatchListItemById = jest.fn();
+    watchListService.addToWatchList.mockResolvedValue({
+      watchlist_id: 1,
+      profile_id: 1,
+      media_id: 1,
+      added_date: '2023-05-04T15:30:00Z'
+    });
+    watchListService.updateWatchList.mockResolvedValue({
+      watchlist_id: 1,
+      profile_id: 1,
+      media_id: 1,
+      added_date: '2023-05-04T15:30:00Z',
+      updated_at: '2023-05-05T10:00:00Z'
+    });
+    watchListService.removeFromWatchList.mockResolvedValue(true);
     
     // Clear all mocks
     jest.clearAllMocks();
@@ -153,7 +190,7 @@ describe('WatchListController', () => {
       
       // Mock watchListService.getWatchList to throw an error
       const error = new Error('Database error');
-      watchListService.getWatchList.mockRejectedValue(error);
+      watchListService.getWatchList.mockRejectedValueOnce(error);
       
       // Call the method
       await watchListController.getWatchList(req, res);
@@ -180,10 +217,10 @@ describe('WatchListController', () => {
       };
       
       // Mock validation
-      watchListController.validateRequiredFields.mockReturnValue({ isValid: true });
+      watchListController.validateRequiredFields.mockReturnValueOnce({ isValid: true });
       
       // Mock verifyProfileOwnership
-      watchListController.verifyProfileOwnership.mockResolvedValue(true);
+      watchListController.verifyProfileOwnership.mockResolvedValueOnce(true);
       
       // Mock watchListService.addToWatchList
       const mockResult = {
@@ -192,7 +229,7 @@ describe('WatchListController', () => {
         media_id: 1,
         added_date: '2023-05-04T15:30:00Z'
       };
-      watchListService.addToWatchList.mockResolvedValue(mockResult);
+      watchListService.addToWatchList.mockResolvedValueOnce(mockResult);
       
       // Call the method
       await watchListController.addToWatchList(req, res);
@@ -209,8 +246,8 @@ describe('WatchListController', () => {
         res, 
         201, 
         {
-          message: "Media added to watch list successfully",
-          watchListItem: mockResult
+          message: "Added to watch list",
+          watchListEntry: mockResult
         }
       );
       expect(watchListController.handleError).not.toHaveBeenCalled();
@@ -224,7 +261,7 @@ describe('WatchListController', () => {
       };
       
       // Mock validation to fail
-      watchListController.validateRequiredFields.mockReturnValue({ 
+      watchListController.validateRequiredFields.mockReturnValueOnce({ 
         isValid: false,
         missingFields: ['mediaId']
       });
@@ -252,10 +289,10 @@ describe('WatchListController', () => {
       };
       
       // Mock validation
-      watchListController.validateRequiredFields.mockReturnValue({ isValid: true });
+      watchListController.validateRequiredFields.mockReturnValueOnce({ isValid: true });
       
       // Mock verifyProfileOwnership to return false
-      watchListController.verifyProfileOwnership.mockResolvedValue(false);
+      watchListController.verifyProfileOwnership.mockResolvedValueOnce(false);
       
       // Call the method
       await watchListController.addToWatchList(req, res);
@@ -280,15 +317,15 @@ describe('WatchListController', () => {
       };
       
       // Mock validation
-      watchListController.validateRequiredFields.mockReturnValue({ isValid: true });
+      watchListController.validateRequiredFields.mockReturnValueOnce({ isValid: true });
       
       // Mock verifyProfileOwnership
-      watchListController.verifyProfileOwnership.mockResolvedValue(true);
+      watchListController.verifyProfileOwnership.mockResolvedValueOnce(true);
       
       // Mock watchListService.addToWatchList to throw conflict error
       const error = new Error('Media already in watch list');
-      error.status = 409;
-      watchListService.addToWatchList.mockRejectedValue(error);
+      error.code = 'DUPLICATE_ENTRY';
+      watchListService.addToWatchList.mockRejectedValueOnce(error);
       
       // Call the method
       await watchListController.addToWatchList(req, res);
@@ -299,7 +336,7 @@ describe('WatchListController', () => {
         req, 
         res, 
         409, 
-        "Media already in watch list"
+        "This media is already in your watch list"
       );
       expect(watchListController.handleSuccess).not.toHaveBeenCalled();
     });
@@ -312,14 +349,14 @@ describe('WatchListController', () => {
       };
       
       // Mock validation
-      watchListController.validateRequiredFields.mockReturnValue({ isValid: true });
+      watchListController.validateRequiredFields.mockReturnValueOnce({ isValid: true });
       
       // Mock verifyProfileOwnership
-      watchListController.verifyProfileOwnership.mockResolvedValue(true);
+      watchListController.verifyProfileOwnership.mockResolvedValueOnce(true);
       
       // Mock watchListService.addToWatchList to throw general error
       const error = new Error('Database error');
-      watchListService.addToWatchList.mockRejectedValue(error);
+      watchListService.addToWatchList.mockRejectedValueOnce(error);
       
       // Call the method
       await watchListController.addToWatchList(req, res);
@@ -330,7 +367,7 @@ describe('WatchListController', () => {
         req, 
         res, 
         500, 
-        "Error adding media to watch list",
+        "Error adding to watch list",
         error.message
       );
       expect(watchListController.handleSuccess).not.toHaveBeenCalled();
@@ -350,13 +387,13 @@ describe('WatchListController', () => {
         profile_id: 1,
         media_id: 1
       };
-      watchListService.getWatchListItemById.mockResolvedValue(mockWatchListItem);
+      watchListService.getWatchListItemById.mockResolvedValueOnce(mockWatchListItem);
       
       // Mock verifyProfileOwnership
-      watchListController.verifyProfileOwnership.mockResolvedValue(true);
+      watchListController.verifyProfileOwnership.mockResolvedValueOnce(true);
       
       // Mock watchListService.removeFromWatchList
-      watchListService.removeFromWatchList.mockResolvedValue(true);
+      watchListService.removeFromWatchList.mockResolvedValueOnce(true);
       
       // Call the method
       await watchListController.removeFromWatchList(req, res);
@@ -399,7 +436,7 @@ describe('WatchListController', () => {
       };
       
       // Mock watchListService.getWatchListItemById to return null
-      watchListService.getWatchListItemById.mockResolvedValue(null);
+      watchListService.getWatchListItemById.mockResolvedValueOnce(null);
       
       // Call the method
       await watchListController.removeFromWatchList(req, res);
@@ -442,7 +479,7 @@ describe('WatchListController', () => {
         req, 
         res, 
         403, 
-        "You don't have permission to modify this watch list item"
+        "You don't have permission to modify this profile's watch list"
       );
       expect(watchListController.handleSuccess).not.toHaveBeenCalled();
     });

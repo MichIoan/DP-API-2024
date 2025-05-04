@@ -6,7 +6,7 @@
 const { Series } = require("../models/Series");
 const { Season } = require("../models/Season");
 const { Episode } = require("../models/Media");
-const { sequelize } = require("../config/database");
+const sequelize = require("../config/sequelize");
 
 class SeriesService {
     /**

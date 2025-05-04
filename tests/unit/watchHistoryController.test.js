@@ -35,6 +35,18 @@ describe('WatchHistoryController', () => {
     watchHistoryController.validateRequiredFields = jest.fn().mockReturnValue({ isValid: true });
     watchHistoryController.verifyProfileOwnership = jest.fn().mockResolvedValue(true);
     
+    // Set up default implementations for watchHistoryService mocks
+    watchHistoryService.getHistory = jest.fn().mockResolvedValue([]);
+    watchHistoryService.getHistoryItemById = jest.fn();
+    watchHistoryService.markAsWatched = jest.fn().mockResolvedValue({
+      history_id: 1,
+      profile_id: 1,
+      media_id: 1,
+      progress: 0.75,
+      timestamp: '2023-05-04T15:30:00Z'
+    });
+    watchHistoryService.removeFromHistory = jest.fn().mockResolvedValue(true);
+    
     // Clear all mocks
     jest.clearAllMocks();
   });
@@ -225,7 +237,7 @@ describe('WatchHistoryController', () => {
         res, 
         200, 
         {
-          message: "Media marked as watched successfully",
+          message: "Media marked as watched",
           history: mockResult
         }
       );
@@ -284,7 +296,7 @@ describe('WatchHistoryController', () => {
         req, 
         res, 
         403, 
-        "You don't have permission to update this profile's watch history"
+        "You don't have permission to modify this profile's watch history"
       );
       expect(watchHistoryController.handleSuccess).not.toHaveBeenCalled();
     });
@@ -356,7 +368,7 @@ describe('WatchHistoryController', () => {
         req, 
         res, 
         200, 
-        { message: "Item removed from watch history successfully" }
+        { message: "Item removed from history successfully" }
       );
       expect(watchHistoryController.handleError).not.toHaveBeenCalled();
     });
@@ -374,7 +386,7 @@ describe('WatchHistoryController', () => {
         req, 
         res, 
         400, 
-        "History ID is required"
+        "History item ID is required"
       );
       expect(watchHistoryController.handleSuccess).not.toHaveBeenCalled();
     });
@@ -430,7 +442,7 @@ describe('WatchHistoryController', () => {
         req, 
         res, 
         403, 
-        "You don't have permission to modify this watch history item"
+        "You don't have permission to modify this profile's watch history"
       );
       expect(watchHistoryController.handleSuccess).not.toHaveBeenCalled();
     });
@@ -466,7 +478,7 @@ describe('WatchHistoryController', () => {
         req, 
         res, 
         500, 
-        "Error removing item from watch history",
+        "Error removing item from history",
         error.message
       );
       expect(watchHistoryController.handleSuccess).not.toHaveBeenCalled();
