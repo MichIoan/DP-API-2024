@@ -56,10 +56,8 @@ describe('Profile Operations E2E Tests', () => {
     agent = request.agent(server);
   });
   
-  // Close server after all tests
-  afterAll(async () => {
-    // Don't actually close the server here, let the global teardown handle it
-    // This prevents issues when running multiple test suites
+  // Let global teardown handle server closure
+  afterAll(() => {
     server = null;
   });
   

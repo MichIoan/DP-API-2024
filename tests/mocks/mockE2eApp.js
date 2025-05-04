@@ -743,19 +743,29 @@ const startServer = () => {
   
   // Create a new server instance
   const port = process.env.E2E_TEST_PORT || 3002;
-  server = app.listen(port);
-  
-  // Store the server instance globally
-  global.__e2e_test_server__ = server;
-  
-  // Add a forceful cleanup mechanism for the server
-  process.on('exit', () => {
-    if (server && server.listening) {
-      server.close();
-    }
-  });
-  
-  return server;
+  try {
+    server = app.listen(port);
+    
+    // Store the server instance globally
+    global.__e2e_test_server__ = server;
+    
+    // Add a forceful cleanup mechanism for the server
+    process.on('exit', () => {
+      if (server && server.listening) {
+        server.close();
+      }
+    });
+    
+    // Add error handler
+    server.on('error', (err) => {
+      console.error('E2E server error:', err.message);
+    });
+    
+    return server;
+  } catch (err) {
+    console.error('Failed to start E2E server:', err.message);
+    return null;
+  }
 };
 
 const closeServer = () => {
@@ -770,11 +780,18 @@ const closeServer = () => {
       return resolve();
     }
     
-    server.close(() => {
+    try {
+      server.close(() => {
+        server = null;
+        global.__e2e_test_server__ = null;
+        resolve();
+      });
+    } catch (err) {
+      console.error('Error closing E2E server:', err.message);
       server = null;
       global.__e2e_test_server__ = null;
       resolve();
-    });
+    }
   });
 };
 
